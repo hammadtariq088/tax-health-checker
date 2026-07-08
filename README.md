@@ -177,9 +177,10 @@ tax-health-checker/
 ├── .gitignore
 ├── requirements.txt     # Python dependencies
 ├── main.py              # FastAPI application
-├── embed_kb.py          # One-time knowledge base embedding script
+├── embed_kb.py          # One-time knowledge base embedding script on txt files
 ├── README.md            # This file
-├── knowledge_base/      # Put ChatGPT exports here
+├── knowledge_base/      # Put Converted Conversations.txt files here
+├── chatgpt-export/      # Put Conversations.json files here
 ├── templates/
 │   └── index.html       # Frontend HTML
 ```
