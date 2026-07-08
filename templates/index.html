@@ -319,6 +319,9 @@
             <p style="color: var(--text-light); font-size: 0.9rem; margin: 0 0 1.5rem; line-height: 1.5;">
                 Upload your tax return PDF and our AI will analyze it against our knowledge base.
             </p>
+            <div id="kbIndicator" style="font-size: 0.75rem; color: var(--text-light); text-align: center; margin-bottom: 0.5rem;">
+                <span id="kbStatus">Checking knowledge base...</span>
+            </div>
 
             <div class="drop-zone" id="dropZone">
                 <div class="drop-zone-icon">
@@ -509,18 +512,6 @@
                 reportCard.classList.add('hidden');
                 loadingCard.classList.remove('hidden');
 
-                const statusResp = await fetch('/api/kb-status');
-                const status = await statusResp.json();
-                if (!status.ready) {
-                    loadingCard.classList.add('hidden');
-                    if (status.loading) {
-                        showError('The knowledge base is still loading. Please wait a moment and try again. First-time setup takes about 10-15 minutes.');
-                    } else {
-                        showError('The knowledge base has not been loaded. Please contact the site administrator.');
-                    }
-                    return;
-                }
-
                 const formData = new FormData();
                 formData.append('file', selectedFile);
 
@@ -604,6 +595,20 @@
             }
 
             resetToUpload();
+
+            fetch('/api/kb-status')
+                .then(r => r.json())
+                .then(s => {
+                    const el = document.getElementById('kbStatus');
+                    if (s.chunks > 0) {
+                        el.textContent = 'Knowledge base: ' + s.chunks + ' chunks loaded';
+                    } else {
+                        el.textContent = 'Knowledge base empty (run embed_kb.py to load)';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('kbStatus').textContent = 'Knowledge base unavailable';
+                });
         })();
     </script>
 

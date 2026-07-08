@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import glob
 import io
 import time
 import random
@@ -13,6 +12,7 @@ import pdfplumber
 import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,59 +28,58 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+JINA_API_KEY = os.getenv("JINA_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set. AI features will use fallback responses.")
+if not JINA_API_KEY:
+    logger.warning("JINA_API_KEY not set. Embedding features will be unavailable.")
 if not DATABASE_URL:
     logger.warning("DATABASE_URL not set. pgvector features will be unavailable.")
 
-KNOWLEDGE_BASE_DIR = "./knowledge_base"
-CHUNK_SIZE = 2000
-CHUNK_OVERLAP = 200
-EMBEDDING_MODEL = None
 EMBEDDING_DIMS = 768
-EMBED_BATCH_SIZE = 50
-EMBED_RATE_LIMIT_SLEEP = 1.5
 MAX_RETRIES = 5
 RETRY_BASE_DELAY = 2.0
 TOP_K_CHUNKS = 8
 MAX_CHUNK_CHARS = 6000
 
+JINA_EMBED_URL = "https://api.jina.ai/v1/embeddings"
+JINA_EMBED_MODEL = "jina-embeddings-v3"
+
 genai.configure(api_key=GEMINI_API_KEY)
 
-_kb_loaded = False
-_kb_loading = False
-_kb_load_progress = {"total_chunks": 0, "embedded_chunks": 0, "status": "not_started"}
+GENAI_MODEL = None
 
 
-def resolve_embedding_model():
-    global EMBEDDING_MODEL, EMBEDDING_DIMS
+def resolve_generative_model():
+    global GENAI_MODEL
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_google_gemini_api_key_here":
+        logger.warning("GEMINI_API_KEY not configured. AI analysis will use fallback responses.")
+        return
     try:
-        available = [m.name for m in genai.list_models() if "embedContent" in m.supported_generation_methods]
-        logger.info(f"Available embedding models: {available}")
+        available = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
+        logger.info(f"Available generative models: {available}")
     except Exception as e:
         logger.warning(f"Could not list models: {e}")
         available = []
 
     candidates = available or [
-        "models/gemini-embedding-001",
-        "models/gemini-embedding-2-preview",
-        "models/gemini-embedding-2",
-        "models/text-embedding-004",
-        "models/embedding-001",
+        "models/gemini-2.0-flash",
+        "models/gemini-1.5-flash",
+        "models/gemini-1.5-pro",
+        "models/gemini-2.0-flash-lite",
     ]
-
     for model in candidates:
         try:
-            result = genai.embed_content(model=model, content="test")
-            EMBEDDING_MODEL = model
-            EMBEDDING_DIMS = len(result["embedding"])
-            logger.info(f"Using embedding model: {model} ({EMBEDDING_DIMS} dims)")
+            m = genai.GenerativeModel(model, generation_config={"temperature": 0.0})
+            m.generate_content("test")
+            GENAI_MODEL = model
+            logger.info(f"Using generative model: {model}")
             return
         except Exception as e:
-            logger.warning(f"Embedding model {model} not available: {e}")
-    logger.error("No embedding model available!")
+            logger.warning(f"Generative model {model} not available: {e}")
+    logger.error("No generative model available! AI analysis will use fallback responses.")
 
 
 def get_db() -> psycopg2.extensions.connection:
@@ -90,10 +89,11 @@ def get_db() -> psycopg2.extensions.connection:
 
 
 def init_db():
-    global EMBEDDING_MODEL, EMBEDDING_DIMS
-    resolve_embedding_model()
     if not DATABASE_URL:
         logger.error("Cannot initialize database: DATABASE_URL not set")
+        return
+    if not JINA_API_KEY:
+        logger.error("Cannot initialize: JINA_API_KEY not set")
         return
     try:
         conn = get_db()
@@ -110,9 +110,12 @@ def init_db():
 
         if table_exists:
             cur.execute("""
-                SELECT pg_typeof(embedding)::text
-                FROM knowledge_chunks
-                LIMIT 1
+                SELECT pg_catalog.format_type(a.atttypid, a.atttypmod)
+                FROM pg_catalog.pg_attribute a
+                JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                WHERE c.relname = 'knowledge_chunks'
+                  AND a.attname = 'embedding'
+                  AND a.attnum > 0
             """)
             row = cur.fetchone()
             if row:
@@ -170,55 +173,26 @@ def count_chunks() -> int:
 
 
 def get_embedding(text: str) -> List[float]:
-    if not EMBEDDING_MODEL:
-        raise RuntimeError("No embedding model available. Check GEMINI_API_KEY.")
-    result = genai.embed_content(
-        model=EMBEDDING_MODEL,
-        content=text,
+    if not JINA_API_KEY:
+        raise RuntimeError("No embedding API key configured. Check JINA_API_KEY.")
+    response = requests.post(
+        JINA_EMBED_URL,
+        headers={
+            "Authorization": f"Bearer {JINA_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": JINA_EMBED_MODEL,
+            "input": text,
+            "dimensions": EMBEDDING_DIMS,
+            "task": "retrieval.query",
+            "late_chunking": False,
+        },
+        timeout=30,
     )
-    return result["embedding"]
-
-
-def get_embeddings_batch(texts: List[str]) -> List[List[float]]:
-    if not EMBEDDING_MODEL:
-        raise RuntimeError("No embedding model available. Check GEMINI_API_KEY.")
-    result = genai.embed_content(
-        model=EMBEDDING_MODEL,
-        content=texts,
-    )
-    return result["embedding"]
-
-
-def _parse_retry_delay(error_str: str) -> Optional[float]:
-    match = re.search(r'retry_delay\s*\{\s*seconds:\s*(\d+)', error_str)
-    if match:
-        return float(match.group(1))
-    match = re.search(r'retry_delay\s*\{[^}]*seconds:\s*(\d+)', error_str)
-    if match:
-        return float(match.group(1))
-    return None
-
-
-def embed_with_retry(texts: List[str]) -> List[List[float]]:
-    max_attempts = 20
-    for attempt in range(max_attempts):
-        try:
-            return get_embeddings_batch(texts)
-        except Exception as e:
-            error_str = str(e)
-            logger.warning(f"Embedding API error (attempt {attempt + 1}/{max_attempts}): {error_str[:120]}")
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "503" in error_str:
-                suggested_delay = _parse_retry_delay(error_str)
-                delay = suggested_delay or min(60, RETRY_BASE_DELAY * (2 ** (attempt // 2)) + random.uniform(0, 2))
-                logger.info(f"Quota limited. Waiting {delay:.0f}s before retry...")
-                time.sleep(delay)
-            elif attempt < max_attempts - 1:
-                delay = min(30, RETRY_BASE_DELAY * (2 ** attempt))
-                time.sleep(delay)
-            else:
-                break
-    logger.error(f"All embedding retries exhausted after {max_attempts} attempts: {last_error}")
-    raise last_error
+    if response.status_code != 200:
+        raise RuntimeError(f"Jina API error {response.status_code}: {response.text[:200]}")
+    return response.json()["data"][0]["embedding"]
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
@@ -240,125 +214,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
             status_code=400,
             detail=f"Could not extract text from this PDF. Please ensure it is a text-based PDF (not scanned). Error: {str(e)}",
         )
-
-
-def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
-    chunks = []
-    start = 0
-    text_len = len(text)
-    while start < text_len:
-        end = min(start + chunk_size, text_len)
-        if end < text_len:
-            last_period = text.rfind(".", start, end)
-            last_newline = text.rfind("\n", start, end)
-            split_at = max(last_period, last_newline)
-            if split_at > start + chunk_size // 2:
-                end = split_at + 1
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        start = end - overlap if end < text_len else text_len
-    logger.info(f"Split text into {len(chunks)} chunks")
-    return chunks
-
-
-def load_single_file(filepath: str) -> Optional[str]:
-    try:
-        ext = Path(filepath).suffix.lower()
-        if ext == ".txt":
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-                return f.read()
-        elif ext == ".json":
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-                data = json.load(f)
-            if isinstance(data, list):
-                texts = []
-                for item in data:
-                    if isinstance(item, dict):
-                        for key in ["text", "content", "message", "response"]:
-                            if key in item and isinstance(item[key], str):
-                                texts.append(item[key])
-                                break
-                        if "messages" in item and isinstance(item["messages"], list):
-                            for msg in item["messages"]:
-                                if isinstance(msg, dict) and "content" in msg:
-                                    texts.append(str(msg["content"]))
-                return "\n".join(texts)
-            elif isinstance(data, dict):
-                return json.dumps(data, indent=2)
-            else:
-                return str(data)
-        else:
-            logger.warning(f"Unsupported file type: {filepath}")
-            return None
-    except Exception as e:
-        logger.error(f"Failed to read {filepath}: {e}")
-        return None
-
-
-def load_knowledge_base() -> int:
-    if not DATABASE_URL:
-        logger.error("DATABASE_URL not configured. Cannot load knowledge base.")
-        return 0
-
-    kb_path = Path(KNOWLEDGE_BASE_DIR)
-    if not kb_path.exists():
-        kb_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Created knowledge_base directory at {kb_path}")
-        return 0
-
-    existing = count_chunks()
-    if existing > 0:
-        logger.info(f"Knowledge base already loaded ({existing} chunks). Skipping reload.")
-        return existing
-
-    files = sorted(glob.glob(str(kb_path / "*.txt")) + glob.glob(str(kb_path / "*.json")))
-    if not files:
-        logger.warning(f"No knowledge base files found in {KNOWLEDGE_BASE_DIR}")
-        return 0
-
-    total_chunks = 0
-    for filepath in files:
-        content = load_single_file(filepath)
-        if not content:
-            continue
-        chunks = chunk_text(content)
-        filename = Path(filepath).name
-
-        conn = get_db()
-        cur = conn.cursor()
-        for i in range(0, len(chunks), EMBED_BATCH_SIZE):
-            batch = chunks[i:i + EMBED_BATCH_SIZE]
-            try:
-                embeddings = embed_with_retry(batch)
-            except Exception as e:
-                logger.error(f"Failed to embed batch from {filename}: {e}")
-                continue
-            values = []
-            for j, chunk_text_val in enumerate(batch):
-                values.append((
-                    chunk_text_val,
-                    filename,
-                    total_chunks + i + j,
-                    embeddings[j],
-                ))
-            psycopg2.extras.execute_values(
-                cur,
-                "INSERT INTO knowledge_chunks (chunk_text, source_file, chunk_index, embedding) VALUES %s",
-                values,
-                template="(%s, %s, %s, %s::vector)",
-            )
-            conn.commit()
-            logger.info(f"  Embedded and stored batch {i // EMBED_BATCH_SIZE + 1} ({len(batch)} chunks) from {filename}")
-            time.sleep(EMBED_RATE_LIMIT_SLEEP)
-
-        cur.close()
-        conn.close()
-        total_chunks += len(chunks)
-        logger.info(f"Loaded {len(chunks)} chunks from {filename}")
-
-    logger.info(f"Total: {total_chunks} chunks loaded from {len(files)} files")
-    return total_chunks
 
 
 def retrieve_relevant_chunks(query: str, top_k: int = TOP_K_CHUNKS) -> List[str]:
@@ -455,8 +310,22 @@ def call_gemini_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
             "next_step": "Please set up your Gemini API key in the .env file and restart the server."
         })
 
+    if not GENAI_MODEL:
+        return json.dumps({
+            "overall_health": "yellow",
+            "overall_summary": "AI analysis model not available. A manual review is recommended.",
+            "key_areas": [
+                {
+                    "area": "AI Service Unavailable",
+                    "status": "yellow",
+                    "explanation": "No generative AI model could be resolved. A tax professional should review this return manually."
+                }
+            ],
+            "next_step": "Please schedule a free one-to-one review with Tax Support Hub for a manual assessment."
+        })
+
     model = genai.GenerativeModel(
-        "gemini-1.5-flash",
+        GENAI_MODEL,
         generation_config={
             "temperature": 0.0,
             "response_mime_type": "application/json",
@@ -575,43 +444,21 @@ def parse_ai_response(response_text: str) -> dict:
 # App Initialization
 # ---------------------------------------------------------------------------
 
-def load_knowledge_base_background():
-    global _kb_loaded, _kb_loading, _kb_load_progress
-    try:
-        _kb_loading = True
-        _kb_load_progress["status"] = "waiting_for_quota"
-        logger.info("Waiting 60s for API quota to reset before embedding...")
-        time.sleep(60)
-        count = load_knowledge_base()
-        _kb_loaded = True
-        _kb_load_progress["status"] = "completed"
-        _kb_load_progress["total_chunks"] = count
-        logger.info(f"Knowledge base loaded: {count} chunks")
-    except Exception as e:
-        logger.error(f"Knowledge base loading failed: {e}")
-        _kb_load_progress["status"] = f"failed: {e}"
-        _kb_loaded = True
-    finally:
-        _kb_loading = False
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _kb_loaded
     logger.info("Starting Tax Health Checker...")
+    resolve_generative_model()
     init_db()
-    if not _kb_loaded:
-        import threading
-        t = threading.Thread(target=load_knowledge_base_background, daemon=True)
-        t.start()
-        logger.info("Knowledge base loading started in background. Server is ready immediately.")
+    chunks = count_chunks()
+    logger.info(f"Knowledge base: {chunks} chunks ready")
     yield
 
 
 app = FastAPI(
     title="Tax Health Checker",
     description="AI-powered tax return health check tool for Tax Support Hub",
-    version="1.0.0",
+    version="1.2.0",
     lifespan=lifespan,
 )
 
@@ -635,34 +482,29 @@ app.add_middleware(
 # API Endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.get("/api/health")
 def health_check():
-    global _kb_loading, _kb_loaded, _kb_load_progress
+    chunks = count_chunks()
     return {
         "status": "healthy",
-        "knowledge_base_chunks": count_chunks(),
-        "kb_loading": _kb_loading,
-        "kb_loaded": _kb_loaded,
-        "kb_progress": _kb_load_progress,
+        "knowledge_base_chunks": chunks,
+        "kb_ready": chunks > 0,
         "gemini_configured": GEMINI_API_KEY is not None and GEMINI_API_KEY != "your_google_gemini_api_key_here",
+        "jina_configured": JINA_API_KEY is not None,
         "database_configured": DATABASE_URL is not None,
     }
 
 
 @app.get("/api/kb-status")
 def kb_status():
-    global _kb_loading, _kb_loaded, _kb_load_progress
     chunks = count_chunks()
-    if _kb_loaded:
-        return {"ready": True, "loading": False, "chunks": chunks, "message": f"Knowledge base ready ({chunks} chunks)"}
-    if _kb_loading:
-        return {"ready": False, "loading": True, "chunks": chunks, "message": "Knowledge base is loading in background..."}
-    return {"ready": False, "loading": False, "chunks": chunks, "message": "Knowledge base not yet loaded"}
+    ready = chunks > 0
+    return {"ready": ready, "chunks": chunks, "message": f"Knowledge base: {chunks} chunks"}
 
 
 @app.post("/api/reload-knowledge-base")
 def reload_knowledge_base():
-    global _kb_loaded, _kb_loading
     if DATABASE_URL:
         try:
             conn = get_db()
@@ -672,17 +514,19 @@ def reload_knowledge_base():
             cur.close()
             conn.close()
             logger.info("Cleared existing knowledge base chunks")
+            return {
+                "success": True,
+                "message": "Knowledge base cleared. Run `python embed_kb.py` to reload.",
+            }
         except Exception as e:
             logger.warning(f"Could not clear table: {e}")
-
-    _kb_loaded = False
-    _kb_loading = True
-    import threading
-    t = threading.Thread(target=load_knowledge_base_background, daemon=True)
-    t.start()
+            return {
+                "success": False,
+                "message": f"Failed to clear: {e}",
+            }
     return {
-        "success": True,
-        "message": "Knowledge base reload started in background.",
+        "success": False,
+        "message": "DATABASE_URL not configured",
     }
 
 
