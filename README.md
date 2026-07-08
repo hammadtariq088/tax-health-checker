@@ -10,7 +10,7 @@ Users upload a PDF of their tax return and receive a simple, non-technical healt
 
 1. Upload a tax return PDF
 2. Text is extracted from the PDF using pdfplumber
-3. Knowledge chunks are embedded using **Gemini text-embedding-004** via API
+3. Knowledge chunks are embedded using **Jina AI** (`jina-embeddings-v3`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
 5. Google Gemini AI analyzes the return using only your knowledge base
 6. A clean report is returned with overall health status, 5 key areas, and next steps
@@ -22,8 +22,9 @@ Users upload a PDF of their tax return and receive a simple, non-technical healt
 ## Prerequisites
 
 - Python 3.10 or higher
-- A Google Gemini API key (free tier available)
-- A PostgreSQL database with **pgvector** extension (use [Supabase free tier](https://supabase.com/) or [Neon](https://neon.tech/))
+- A Google Gemini API key (free tier available) — for AI analysis
+- A Jina AI API key (free trial available) — for embeddings
+- A PostgreSQL database with **pgvector** extension (use [Neon](https://neon.tech/) or [Supabase](https://supabase.com/))
 
 ---
 
@@ -31,24 +32,23 @@ Users upload a PDF of their tax return and receive a simple, non-technical healt
 
 ### 1. Set Up PostgreSQL with pgvector
 
-**Option A — Supabase (recommended, free):**
+**Option A — Neon (serverless, recommended):**
+
+1. Go to https://neon.tech/ and sign up
+2. Create a project
+3. Copy the connection string from the dashboard
+
+**Option B — Supabase:**
+
 1. Go to https://supabase.com/ and sign up
 2. Create a new project
 3. Go to Project Settings → Database → Connection string
 4. Copy the URI connection string
 
-**Option B — Neon (serverless PostgreSQL):**
-1. Go to https://neon.tech/ and sign up
-2. Create a project
-3. Copy the connection string from the dashboard
-
 **Option C — Local PostgreSQL:**
+
 ```bash
-# Install PostgreSQL
-sudo apt install postgresql postgresql-contrib
-# Install pgvector
-sudo apt install postgresql-16-pgvector  # adjust version to match your PostgreSQL
-# Create database
+sudo apt install postgresql postgresql-contrib postgresql-16-pgvector
 createdb tax_health_checker
 ```
 
@@ -72,34 +72,52 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 5. Get a Google Gemini API Key
+### 5. Get API Keys
+
+**Google Gemini API Key** (for AI analysis):
 
 1. Go to https://aistudio.google.com/app/apikey
 2. Click **"Create API Key"**
 3. Copy the key
-4. Edit the `.env` file in the project root:
+
+**Jina AI API Key** (for embeddings):
+
+1. Go to https://jina.ai/embeddings/
+2. Sign up for a free account
+3. Copy your API key
+
+### 6. Configure Environment
+
+Edit the `.env` file in the project root:
 
 ```
-GEMINI_API_KEY=your_actual_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
+JINA_API_KEY=your_jina_api_key
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
-> Replace `DATABASE_URL` with your actual Supabase, Neon, or local PostgreSQL connection string.
+> Replace `DATABASE_URL` with your actual Neon, Supabase, or local PostgreSQL connection string.
 
-### 6. Add Knowledge Base Files
+### 7. Add Knowledge Base Files
 
 Place your exported ChatGPT conversation files (.txt or .json) in the `knowledge_base/` folder:
 
 ```bash
 knowledge_base/
-├── chat_about_tax_deductions.txt
-├── irs_audit_discussion.json
+├── conversations-000.txt
+├── chat_about_tax_deductions.json
 └── ...
 ```
 
-The tool will automatically process these files on startup. To reload the knowledge base after adding new files, call the `/api/reload-knowledge-base` endpoint (see below).
+### 8. Embed the Knowledge Base (Required — one-time)
 
-### 7. Run the Tool Locally
+```bash
+python3 embed_kb.py
+```
+
+This reads all files from `knowledge_base/`, chunks them (8000 chars each), generates embeddings via Jina AI, and stores them in pgvector. Run this once after adding/updating files.
+
+### 9. Run the Server
 
 ```bash
 python3 main.py
@@ -107,16 +125,19 @@ python3 main.py
 
 The app will be available at **http://localhost:8000**
 
+To re-embed after updating knowledge base files, run `python3 embed_kb.py --no-clear` (skips truncation) or `python3 embed_kb.py` (truncates and re-embeds everything).
+
 ---
 
 ## API Endpoints
 
-| Endpoint                     | Method | Description                          |
-| ---------------------------- | ------ | ------------------------------------ |
-| `/`                          | GET    | Frontend HTML page                   |
-| `/api/health`                | GET    | Health check + knowledge base status |
-| `/api/health-check`          | POST   | Upload a PDF and get a health report |
-| `/api/reload-knowledge-base` | POST   | Reload knowledge base from files     |
+| Endpoint                     | Method | Description                                         |
+| ---------------------------- | ------ | --------------------------------------------------- |
+| `/`                          | GET    | Frontend HTML page                                  |
+| `/api/health`                | GET    | Health check + knowledge base status                |
+| `/api/kb-status`             | GET    | Knowledge base chunk count                          |
+| `/api/health-check`          | POST   | Upload a PDF and get a health report                |
+| `/api/reload-knowledge-base` | POST   | Clear knowledge base (re-run embed_kb.py to reload) |
 
 ### Example: Health Check via API
 
@@ -125,110 +146,26 @@ curl -X POST http://localhost:8000/api/health-check \
   -F "file=@/path/to/tax_return.pdf"
 ```
 
-### Example: Reload Knowledge Base
+### Example: Check Knowledge Base Status
 
 ```bash
-curl -X POST http://localhost:8000/api/reload-knowledge-base
+curl http://localhost:8000/api/kb-status
+# {"ready": true, "chunks": 362, "message": "Knowledge base: 362 chunks"}
 ```
 
 ---
 
 ## Important Notes
 
-- **Embeddings** are generated via Gemini API (`text-embedding-004`) — no local ML models, no heavy CPU/RAM usage
+- **Embeddings** are generated via Jina AI API (`jina-embeddings-v3`, 768 dims) — no local ML models, no heavy CPU/RAM usage
+- **AI analysis** uses Google Gemini (model auto-detected at startup)
 - **Vector search** uses pgvector with cosine similarity (`<=>` operator)
+- **Knowledge base embedding** is a separate one-time step (`embed_kb.py`) — the server starts instantly without waiting
 - **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source
 - **No user data stored** — uploaded PDFs are processed in memory and discarded
-- **Rate limit handling** — automatic retry with exponential backoff for both embedding and generation APIs
+- **Rate limit handling** — retry logic with exponential backoff for both embedding and generation APIs
 - **If no relevant knowledge is found**, the system returns a manual-review response
 - **PDF requirement** — works with text-based PDFs only. Use OCR for scanned documents first.
-
----
-
-## Deploy to Koyeb (Free)
-
-1. Push your code to GitHub:
-
-```bash
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/your-username/tax-health-checker.git
-git push -u origin main
-```
-
-2. Go to [Koyeb.com](https://www.koyeb.com/) and create an account
-3. Click **"Create App"** → **"Docker"** → select your GitHub repository
-4. In **"Instance"** section, choose the free plan
-5. Set the **Run Command** to: `python main.py`
-6. Add environment variables:
-   - `GEMINI_API_KEY`
-   - `DATABASE_URL` (use a cloud PostgreSQL like Supabase/Neon)
-7. Click **"Deploy"**
-
-Koyeb will automatically build and deploy your app. You'll get a public URL like `https://tax-health-checker-xxxx.koyeb.app`.
-
----
-
-## Deploy to Hostinger VPS (Alternative)
-
-1. SSH into your VPS
-2. Install Python 3.10+ and pip
-3. Clone the repository
-4. Set up the virtual environment and install dependencies
-5. Set up a systemd service or use supervisor to keep the app running
-6. Optionally set up Nginx as a reverse proxy
-
-```bash
-# Example: Run with nohup
-nohup python main.py > app.log 2>&1 &
-```
-
----
-
-## Embed into WordPress (iframe)
-
-Add this code to any WordPress page or post (using the "Custom HTML" block or a plugin like "Insert Headers and Footers"):
-
-```html
-<iframe
-  src="https://your-deployed-url.koyeb.app/"
-  width="100%"
-  height="800"
-  frameborder="0"
-  style="border: none; max-width: 100%; overflow: hidden;"
-  allow="clipboard-read; clipboard-write"
-></iframe>
-```
-
-Replace `https://your-deployed-url.koyeb.app/` with your actual deployment URL.
-
----
-
-## Managing Knowledge Base via WordPress
-
-The client can update the knowledge base using a WordPress file manager plugin:
-
-1. Install a WordPress file manager plugin (e.g., "File Manager" by mndpsingh287)
-2. Navigate to the file manager in the WordPress admin dashboard
-3. Create or navigate to a folder like `/wp-content/knowledge_base/`
-4. Upload new ChatGPT export files (.txt or .json) to this folder
-5. Use a WordPress custom endpoint or a simple PHP page to call the reload API:
-
-```php
-<?php
-// Place this in a custom WordPress plugin or theme file
-$response = wp_remote_post('https://your-deployed-url.koyeb.app/api/reload-knowledge-base');
-if (!is_wp_error($response)) {
-    echo 'Knowledge base reloaded successfully.';
-}
-?>
-```
-
-Or simply use a browser to visit:
-
-```
-https://your-deployed-url.koyeb.app/api/reload-knowledge-base
-```
 
 ---
 
@@ -236,10 +173,11 @@ https://your-deployed-url.koyeb.app/api/reload-knowledge-base
 
 ```
 tax-health-checker/
-├── .env                 # Environment variables (GEMINI_API_KEY)
+├── .env                 # Environment variables (GEMINI_API_KEY, JINA_API_KEY, DATABASE_URL)
 ├── .gitignore
 ├── requirements.txt     # Python dependencies
 ├── main.py              # FastAPI application
+├── embed_kb.py          # One-time knowledge base embedding script
 ├── README.md            # This file
 ├── knowledge_base/      # Put ChatGPT exports here
 ├── templates/
@@ -257,6 +195,16 @@ tax-health-checker/
 5. Extract the zip file and place relevant .json or .txt files in `knowledge_base/`
 
 ---
+
+## Deploy to Production
+
+Set environment variables on your hosting platform:
+
+- `GEMINI_API_KEY` — Google Gemini API key for AI analysis
+- `JINA_API_KEY` — Jina AI API key for embeddings
+- `DATABASE_URL` — PostgreSQL connection string (use a cloud provider)
+
+For scale-to-zero platforms (Koyeb, Railway, etc.), ensure `embed_kb.py` is run as a one-off build step or deploy hook before the server starts.
 
 ---
 
