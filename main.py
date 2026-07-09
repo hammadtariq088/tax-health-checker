@@ -17,6 +17,12 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
+
+class LeadCapture(BaseModel):
+    email: str
+    phone: str
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -147,6 +153,15 @@ def init_db():
                 logger.info("Created ivfflat index on embedding column")
             else:
                 logger.info(f"Skipping ivfflat index ({EMBEDDING_DIMS} dims > 2000 limit). Exact search will be used.")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                phone VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
 
         conn.commit()
         cur.close()
@@ -528,6 +543,27 @@ def reload_knowledge_base():
         "success": False,
         "message": "DATABASE_URL not configured",
     }
+
+
+@app.post("/api/capture-lead")
+def capture_lead(data: LeadCapture):
+    if not DATABASE_URL:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO leads (email, phone) VALUES (%s, %s)",
+            (data.email.strip(), data.phone.strip()),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info(f"Lead captured: {data.email}")
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Failed to capture lead: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save lead info")
 
 
 @app.post("/api/health-check")
