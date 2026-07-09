@@ -1760,9 +1760,9 @@
           .then(function (s) {
             var el = document.getElementById("kbStatus");
             if (s.chunks > 0) {
-              el.textContent = "Knowledge base: " + s.chunks + " chunks loaded";
+              el.textContent = "Knowledge base loaded";
             } else {
-              el.textContent = "Knowledge base empty (run embed_kb.py to load)";
+              el.textContent = "Knowledge base empty";
             }
           })
           .catch(function () {
