@@ -2,7 +2,7 @@
 
 An AI-powered tax return health check tool built for **Tax Support Hub** (https://taxsupporthub.com/).
 
-Users upload a PDF of their tax return and receive a simple, non-technical health report with a status rating, key areas of focus, and a call-to-action for a free professional review.
+Users upload a PDF of their tax return and receive a professional, non-technical health report with a visual health gauge, status rating, key areas of focus, PDF download, and WhatsApp booking integration.
 
 ---
 
@@ -13,7 +13,8 @@ Users upload a PDF of their tax return and receive a simple, non-technical healt
 3. Knowledge chunks are embedded using **Jina AI** (`jina-embeddings-v3`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
 5. Google Gemini AI analyzes the return using only your knowledge base
-6. A clean report is returned with overall health status, 5 key areas, and next steps
+6. A professional report is returned with a health gauge, overall status, 5 key areas with icons, and next steps
+7. The report can be downloaded as PDF (email/phone collected first) or shared via WhatsApp
 
 **No user data is stored — uploaded PDFs are processed in memory only.**
 
@@ -131,13 +132,14 @@ To re-embed after updating knowledge base files, run `python3 embed_kb.py --no-c
 
 ## API Endpoints
 
-| Endpoint                     | Method | Description                                         |
-| ---------------------------- | ------ | --------------------------------------------------- |
-| `/`                          | GET    | Frontend HTML page                                  |
-| `/api/health`                | GET    | Health check + knowledge base status                |
-| `/api/kb-status`             | GET    | Knowledge base chunk count                          |
-| `/api/health-check`          | POST   | Upload a PDF and get a health report                |
-| `/api/reload-knowledge-base` | POST   | Clear knowledge base (re-run embed_kb.py to reload) |
+| Endpoint                     | Method | Description                                           |
+| ---------------------------- | ------ | ----------------------------------------------------- |
+| `/`                          | GET    | Frontend HTML page                                    |
+| `/api/health`                | GET    | Health check + knowledge base status                  |
+| `/api/kb-status`             | GET    | Knowledge base chunk count                            |
+| `/api/health-check`          | POST   | Upload a PDF and get a health report                  |
+| `/api/capture-lead`          | POST   | Store email/phone for follow-up (before PDF download) |
+| `/api/reload-knowledge-base` | POST   | Clear knowledge base (re-run embed_kb.py to reload)   |
 
 ### Example: Health Check via API
 
@@ -162,7 +164,11 @@ curl http://localhost:8000/api/kb-status
 - **Vector search** uses pgvector with cosine similarity (`<=>` operator)
 - **Knowledge base embedding** is a separate one-time step (`embed_kb.py`) — the server starts instantly without waiting
 - **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source
-- **No user data stored** — uploaded PDFs are processed in memory and discarded
+- **Lead capture** — when downloading the PDF report, email and phone are stored in the `leads` table for follow-up
+- **No user data stored from PDFs** — uploaded PDFs are processed in memory and discarded
+- **PDF download** — the report can be downloaded as a PDF using html2pdf.js (client-side generation)
+- **WhatsApp booking** — floating action button + inline button link to WhatsApp deep-link for booking reviews
+- **Animated UI** — scanning animation with progress steps, health gauge, staggered area card animations
 - **Rate limit handling** — retry logic with exponential backoff for both embedding and generation APIs
 - **If no relevant knowledge is found**, the system returns a manual-review response
 - **PDF requirement** — works with text-based PDFs only. Use OCR for scanned documents first.
@@ -176,13 +182,13 @@ tax-health-checker/
 ├── .env                 # Environment variables (GEMINI_API_KEY, JINA_API_KEY, DATABASE_URL)
 ├── .gitignore
 ├── requirements.txt     # Python dependencies
-├── main.py              # FastAPI application
-├── embed_kb.py          # One-time knowledge base embedding script on txt files
+├── main.py              # FastAPI application (PDF extraction, RAG, Gemini analysis, lead capture)
+├── embed_kb.py          # One-time knowledge base embedding script
 ├── README.md            # This file
 ├── knowledge_base/      # Put Converted Conversations.txt files here
 ├── chatgpt-export/      # Put Conversations.json files here
 ├── templates/
-│   └── index.html       # Frontend HTML
+│   └── index.html       # Frontend HTML (Tailwind CSS, html2pdf.js, WhatsApp integration)
 ```
 
 ---
