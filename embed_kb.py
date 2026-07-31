@@ -19,9 +19,9 @@ import argparse
 from pathlib import Path
 from typing import List, Optional
 
-import requests
 import psycopg2
 import psycopg2.extras
+from openai import OpenAI
 from dotenv import load_dotenv
 
 logging.basicConfig(
@@ -33,24 +33,25 @@ logger = logging.getLogger("embed_kb")
 
 load_dotenv()
 
-JINA_API_KEY = os.getenv("JINA_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not JINA_API_KEY:
-    raise SystemExit("FATAL: JINA_API_KEY not set in .env")
+if not OPENAI_API_KEY:
+    raise SystemExit("FATAL: OPENAI_API_KEY not set in .env")
 if not DATABASE_URL:
     raise SystemExit("FATAL: DATABASE_URL not set in .env")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 KNOWLEDGE_BASE_DIR = "./knowledge_base"
 CHUNK_SIZE = 8000
 CHUNK_OVERLAP = 0
-EMBEDDING_DIMS = 768
+EMBEDDING_DIMS = 1536
 EMBED_BATCH_SIZE = 50
 EMBED_SLEEP = 0.5
 MAX_EMBED_RETRIES = 5
 
-JINA_EMBED_URL = "https://api.jina.ai/v1/embeddings"
-JINA_EMBED_MODEL = "jina-embeddings-v3"
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
 
 def get_db():
@@ -167,25 +168,13 @@ def load_single_file(filepath: str) -> Optional[str]:
 
 
 def embed_batch(texts: List[str]) -> List[List[float]]:
-    response = requests.post(
-        JINA_EMBED_URL,
-        headers={
-            "Authorization": f"Bearer {JINA_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": JINA_EMBED_MODEL,
-            "input": texts,
-            "dimensions": EMBEDDING_DIMS,
-            "task": "retrieval.passage",
-            "late_chunking": False,
-        },
-        timeout=60,
+    response = client.embeddings.create(
+        model=OPENAI_EMBEDDING_MODEL,
+        input=texts,
+        dimensions=EMBEDDING_DIMS,
     )
-    if response.status_code != 200:
-        raise RuntimeError(f"Jina API error {response.status_code}: {response.text[:200]}")
-    data = response.json()
-    return [data["data"][i]["embedding"] for i in range(len(texts))]
+    data = response.data
+    return [data[i].embedding for i in range(len(texts))]
 
 
 def embed_with_retry(texts: List[str]) -> List[List[float]]:
