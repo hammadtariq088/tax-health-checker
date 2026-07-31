@@ -10,9 +10,9 @@ Users upload a PDF of their tax return and receive a professional, non-technical
 
 1. Upload a tax return PDF
 2. Text is extracted from the PDF using pdfplumber
-3. Knowledge chunks are embedded using **Jina AI** (`jina-embeddings-v3`) via a one-time script (`embed_kb.py`)
+3. Knowledge chunks are embedded using **OpenAI** (`text-embedding-3-small`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
-5. Google Gemini AI analyzes the return using only your knowledge base
+5. OpenAI (`gpt-4o-mini`) analyzes the return using only your knowledge base
 6. A professional report is returned with a health gauge, overall status, 5 key areas with icons, and next steps
 7. The report can be downloaded as PDF (email/phone collected first) or shared via WhatsApp
 
@@ -23,8 +23,7 @@ Users upload a PDF of their tax return and receive a professional, non-technical
 ## Prerequisites
 
 - Python 3.10 or higher
-- A Google Gemini API key (free tier available) — for AI analysis
-- A Jina AI API key (free trial available) — for embeddings
+- An OpenAI API key — for AI analysis and embeddings
 - A PostgreSQL database with **pgvector** extension (use [Neon](https://neon.tech/) or [Supabase](https://supabase.com/))
 
 ---
@@ -73,31 +72,28 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 5. Get API Keys
+### 5. Get an API Key
 
-**Google Gemini API Key** (for AI analysis):
+**OpenAI API Key** (for AI analysis and embeddings):
 
-1. Go to https://aistudio.google.com/app/apikey
-2. Click **"Create API Key"**
-3. Copy the key
-
-**Jina AI API Key** (for embeddings):
-
-1. Go to https://jina.ai/embeddings/
-2. Sign up for a free account
-3. Copy your API key
+1. Go to https://platform.openai.com/api-keys
+2. Click **"Create new secret key"**
+3. Copy the key (starts with `sk-`)
+4. Make sure you have credits/usage access on your OpenAI account
 
 ### 6. Configure Environment
 
 Edit the `.env` file in the project root:
 
 ```
-GEMINI_API_KEY=your_gemini_api_key
-JINA_API_KEY=your_jina_api_key
+OPENAI_API_KEY=sk-your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
 > Replace `DATABASE_URL` with your actual Neon, Supabase, or local PostgreSQL connection string.
+> The `OPENAI_MODEL` and `OPENAI_EMBEDDING_MODEL` values are optional and fall back to the defaults shown above.
 
 ### 7. Add Knowledge Base Files
 
@@ -116,7 +112,7 @@ knowledge_base/
 python3 embed_kb.py
 ```
 
-This reads all files from `knowledge_base/`, chunks them (8000 chars each), generates embeddings via Jina AI, and stores them in pgvector. Run this once after adding/updating files.
+This reads all files from `knowledge_base/`, chunks them (8000 chars each), generates embeddings via the OpenAI API, and stores them in pgvector. Run this once after adding/updating files.
 
 ### 9. Run the Server
 
@@ -159,8 +155,8 @@ curl http://localhost:8000/api/kb-status
 
 ## Important Notes
 
-- **Embeddings** are generated via Jina AI API (`jina-embeddings-v3`, 768 dims) — no local ML models, no heavy CPU/RAM usage
-- **AI analysis** uses Google Gemini (model auto-detected at startup)
+- **Embeddings** are generated via the OpenAI API (`text-embedding-3-small`, 1536 dims) — no local ML models, no heavy CPU/RAM usage
+- **AI analysis** uses OpenAI (`gpt-4o-mini` by default, configurable via `OPENAI_MODEL`)
 - **Vector search** uses pgvector with cosine similarity (`<=>` operator)
 - **Knowledge base embedding** is a separate one-time step (`embed_kb.py`) — the server starts instantly without waiting
 - **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source
@@ -179,10 +175,10 @@ curl http://localhost:8000/api/kb-status
 
 ```
 tax-health-checker/
-├── .env                 # Environment variables (GEMINI_API_KEY, JINA_API_KEY, DATABASE_URL)
+├── .env                 # Environment variables (OPENAI_API_KEY, DATABASE_URL)
 ├── .gitignore
 ├── requirements.txt     # Python dependencies
-├── main.py              # FastAPI application (PDF extraction, RAG, Gemini analysis, lead capture)
+├── main.py              # FastAPI application (PDF extraction, RAG, OpenAI analysis, lead capture)
 ├── embed_kb.py          # One-time knowledge base embedding script
 ├── README.md            # This file
 ├── knowledge_base/      # Put Converted Conversations.txt files here
@@ -207,8 +203,7 @@ tax-health-checker/
 
 Set environment variables on your hosting platform:
 
-- `GEMINI_API_KEY` — Google Gemini API key for AI analysis
-- `JINA_API_KEY` — Jina AI API key for embeddings
+- `OPENAI_API_KEY` — OpenAI API key for AI analysis and embeddings
 - `DATABASE_URL` — PostgreSQL connection string (use a cloud provider)
 
 For scale-to-zero platforms (Koyeb, Railway, etc.), ensure `embed_kb.py` is run as a one-off build step or deploy hook before the server starts.

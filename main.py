@@ -9,10 +9,9 @@ from pathlib import Path
 from typing import List, Optional
 from contextlib import asynccontextmanager
 import pdfplumber
-import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
-import requests
+from openai import OpenAI
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,59 +32,24 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-JINA_API_KEY = os.getenv("JINA_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not GEMINI_API_KEY:
-    logger.warning("GEMINI_API_KEY not set. AI features will use fallback responses.")
-if not JINA_API_KEY:
-    logger.warning("JINA_API_KEY not set. Embedding features will be unavailable.")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+if not OPENAI_API_KEY:
+    logger.warning("OPENAI_API_KEY not set. AI features will use fallback responses.")
 if not DATABASE_URL:
     logger.warning("DATABASE_URL not set. pgvector features will be unavailable.")
 
-EMBEDDING_DIMS = 768
+EMBEDDING_DIMS = 1536
 MAX_RETRIES = 5
 RETRY_BASE_DELAY = 2.0
 TOP_K_CHUNKS = 8
 MAX_CHUNK_CHARS = 6000
 
-JINA_EMBED_URL = "https://api.jina.ai/v1/embeddings"
-JINA_EMBED_MODEL = "jina-embeddings-v3"
-
-genai.configure(api_key=GEMINI_API_KEY)
-
-GENAI_MODEL = None
-
-
-def resolve_generative_model():
-    global GENAI_MODEL
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_google_gemini_api_key_here":
-        logger.warning("GEMINI_API_KEY not configured. AI analysis will use fallback responses.")
-        return
-    try:
-        available = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
-        logger.info(f"Available generative models: {available}")
-    except Exception as e:
-        logger.warning(f"Could not list models: {e}")
-        available = []
-
-    candidates = available or [
-        "models/gemini-2.0-flash",
-        "models/gemini-1.5-flash",
-        "models/gemini-1.5-pro",
-        "models/gemini-2.0-flash-lite",
-    ]
-    for model in candidates:
-        try:
-            m = genai.GenerativeModel(model, generation_config={"temperature": 0.0})
-            m.generate_content("test")
-            GENAI_MODEL = model
-            logger.info(f"Using generative model: {model}")
-            return
-        except Exception as e:
-            logger.warning(f"Generative model {model} not available: {e}")
-    logger.error("No generative model available! AI analysis will use fallback responses.")
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 
 def get_db() -> psycopg2.extensions.connection:
@@ -98,8 +62,8 @@ def init_db():
     if not DATABASE_URL:
         logger.error("Cannot initialize database: DATABASE_URL not set")
         return
-    if not JINA_API_KEY:
-        logger.error("Cannot initialize: JINA_API_KEY not set")
+    if not OPENAI_API_KEY:
+        logger.error("Cannot initialize: OPENAI_API_KEY not set")
         return
     try:
         conn = get_db()
@@ -188,26 +152,17 @@ def count_chunks() -> int:
 
 
 def get_embedding(text: str) -> List[float]:
-    if not JINA_API_KEY:
-        raise RuntimeError("No embedding API key configured. Check JINA_API_KEY.")
-    response = requests.post(
-        JINA_EMBED_URL,
-        headers={
-            "Authorization": f"Bearer {JINA_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": JINA_EMBED_MODEL,
-            "input": text,
-            "dimensions": EMBEDDING_DIMS,
-            "task": "retrieval.query",
-            "late_chunking": False,
-        },
-        timeout=30,
-    )
-    if response.status_code != 200:
-        raise RuntimeError(f"Jina API error {response.status_code}: {response.text[:200]}")
-    return response.json()["data"][0]["embedding"]
+    if not OPENAI_API_KEY or not client:
+        raise RuntimeError("No embedding API key configured. Check OPENAI_API_KEY.")
+    try:
+        response = client.embeddings.create(
+            model=OPENAI_EMBEDDING_MODEL,
+            input=text,
+            dimensions=EMBEDDING_DIMS,
+        )
+        return response.data[0].embedding
+    except Exception as e:
+        raise RuntimeError(f"OpenAI embedding error: {str(e)}")
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
@@ -310,63 +265,55 @@ If no knowledge base context is available, set overall_health to "yellow" and ex
     return prompt
 
 
-def call_gemini_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_google_gemini_api_key_here":
+def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
+    if not OPENAI_API_KEY or not client:
         return json.dumps({
             "overall_health": "yellow",
-            "overall_summary": "AI service not configured. Please set up your Gemini API key.",
+            "overall_summary": "AI service not configured. Please set up your OpenAI API key.",
             "key_areas": [
                 {
                     "area": "Configuration Required",
                     "status": "yellow",
-                    "explanation": "The AI analysis service needs a valid Gemini API key to function. Please contact the site administrator."
+                    "explanation": "The AI analysis service needs a valid OpenAI API key to function. Please contact the site administrator."
                 }
             ],
-            "next_step": "Please set up your Gemini API key in the .env file and restart the server."
+            "next_step": "Please set up your OpenAI API key in the .env file and restart the server."
         })
 
-    if not GENAI_MODEL:
-        return json.dumps({
-            "overall_health": "yellow",
-            "overall_summary": "AI analysis model not available. A manual review is recommended.",
-            "key_areas": [
-                {
-                    "area": "AI Service Unavailable",
-                    "status": "yellow",
-                    "explanation": "No generative AI model could be resolved. A tax professional should review this return manually."
-                }
-            ],
-            "next_step": "Please schedule a free one-to-one review with Tax Support Hub for a manual assessment."
-        })
-
-    model = genai.GenerativeModel(
-        GENAI_MODEL,
-        generation_config={
-            "temperature": 0.0,
-            "response_mime_type": "application/json",
-        }
+    system_prompt = (
+        "You are a tax health checker for Tax Support Hub. You respond only with valid JSON "
+        "following the exact structure requested by the user, using only the provided knowledge base."
     )
 
     last_error = None
     for attempt in range(max_retries):
         try:
-            logger.info(f"Calling Gemini API (attempt {attempt + 1}/{max_retries})")
-            response = model.generate_content(prompt)
-            if response.text:
-                return response.text.strip()
+            logger.info(f"Calling OpenAI API (attempt {attempt + 1}/{max_retries})")
+            response = client.chat.completions.create(
+                model=OPENAI_MODEL,
+                temperature=0.0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            content = response.choices[0].message.content
+            if content:
+                return content.strip()
             else:
-                raise ValueError("Empty response from Gemini")
+                raise ValueError("Empty response from OpenAI")
         except Exception as e:
             last_error = e
             error_str = str(e)
-            logger.warning(f"Gemini API error (attempt {attempt + 1}): {error_str}")
+            logger.warning(f"OpenAI API error (attempt {attempt + 1}): {error_str}")
 
-            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "503" in error_str:
+            if "RateLimitError" in type(e).__name__ or "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "503" in error_str:
                 delay = RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1)
                 logger.info(f"Rate limited. Retrying in {delay:.2f}s...")
                 time.sleep(delay)
                 continue
-            elif "SAFETY" in error_str.upper() or "BLOCKED" in error_str.upper():
+            elif "SAFETY" in error_str.upper() or "BLOCKED" in error_str.upper() or "content_policy" in error_str.lower():
                 return json.dumps({
                     "overall_health": "yellow",
                     "overall_summary": "The AI analysis was blocked by safety filters. A manual review is recommended.",
@@ -386,7 +333,7 @@ def call_gemini_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                     continue
                 break
 
-    logger.error(f"All Gemini API retries exhausted. Last error: {last_error}")
+    logger.error(f"All OpenAI API retries exhausted. Last error: {last_error}")
     return json.dumps({
         "overall_health": "yellow",
         "overall_summary": "The AI service is temporarily unavailable. A manual review is recommended.",
@@ -463,7 +410,6 @@ def parse_ai_response(response_text: str) -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Tax Health Checker...")
-    resolve_generative_model()
     init_db()
     chunks = count_chunks()
     logger.info(f"Knowledge base: {chunks} chunks ready")
@@ -505,8 +451,8 @@ def health_check():
         "status": "healthy",
         "knowledge_base_chunks": chunks,
         "kb_ready": chunks > 0,
-        "gemini_configured": GEMINI_API_KEY is not None and GEMINI_API_KEY != "your_google_gemini_api_key_here",
-        "jina_configured": JINA_API_KEY is not None,
+        "openai_configured": OPENAI_API_KEY is not None and OPENAI_API_KEY != "sk-your_openai_api_key_here",
+        "embeddings_configured": OPENAI_API_KEY is not None,
         "database_configured": DATABASE_URL is not None,
     }
 
@@ -625,7 +571,7 @@ async def health_check_upload(file: UploadFile = File(...)):
         }
 
     prompt = build_strict_prompt(tax_return_text, chunks)
-    ai_response = call_gemini_with_retry(prompt)
+    ai_response = call_openai_with_retry(prompt)
     result = parse_ai_response(ai_response)
 
     return result

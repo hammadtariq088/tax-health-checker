@@ -1345,6 +1345,7 @@
         // ---- PDF Generation ----
         function buildPDFContent(data) {
           var health = data.overall_health || "yellow";
+          console.log("health", health);
           var score = health === "green" ? 85 : health === "red" ? 25 : 55;
           var statusLabel =
             health === "green"
