@@ -472,29 +472,6 @@
         display: none;
       }
 
-      /* Status Badge */
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1.25rem;
-        border-radius: 100px;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .status-badge.green {
-        background: #e6f4ea;
-        color: #1e7e34;
-      }
-      .status-badge.yellow {
-        background: #fef7e0;
-        color: #b06000;
-      }
-      .status-badge.red {
-        background: #fce8e6;
-        color: #c5221f;
-      }
-
       /* Key Area Cards */
       .area-card {
         display: flex;
@@ -1009,7 +986,6 @@
           >
             Your Tax Health Report
           </h2>
-          <!-- <div id="statusBadge" class="status-badge"></div> -->
         </div>
         <p
           id="overallSummary"
@@ -1182,7 +1158,6 @@
         const errorCard = document.getElementById("errorCard");
         const errorMessage = document.getElementById("errorMessage");
         const retryBtn = document.getElementById("retryBtn");
-        const statusBadge = document.getElementById("statusBadge");
         const overallSummary = document.getElementById("overallSummary");
         const concernsList = document.getElementById("concernsList");
         const newCheckBtn = document.getElementById("newCheckBtn");
@@ -1574,26 +1549,6 @@
         // ---- Display Report ----
         function displayReport(data) {
           showView(reportCard);
-
-          var health = data.overall_health || "yellow";
-          var statusLabel =
-            health === "green"
-              ? "Good Health"
-              : health === "red"
-                ? "Attention Needed"
-                : "Needs Review";
-
-          // Badge
-          statusBadge.className = "status-badge " + health;
-          statusBadge.innerHTML =
-            '<span class="status-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;background:' +
-            (health === "green"
-              ? "#34a853"
-              : health === "red"
-                ? "#ea4335"
-                : "#fbbc04") +
-            ';"></span>' +
-            statusLabel;
 
           overallSummary.textContent =
             data.overall_summary || "Your tax return has been reviewed.";
