@@ -126,14 +126,6 @@
           opacity: 0;
         }
       }
-      @keyframes gaugeFill {
-        from {
-          stroke-dashoffset: var(--circumference);
-        }
-        to {
-          stroke-dashoffset: var(--target-offset);
-        }
-      }
       @keyframes ripple {
         to {
           transform: scale(4);
@@ -544,10 +536,10 @@
         margin: 0 0 0.2rem;
       }
       .area-card .area-content p {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: var(--text-light);
         margin: 0;
-        line-height: 1.5;
+        line-height: 1.6;
       }
 
       /* CTA Section */
@@ -998,11 +990,6 @@
       <!-- Report Card -->
       <div id="reportCard" class="card hidden">
         <div
-          style="text-align: center; margin-bottom: 1.5rem"
-          id="gaugeContainer"
-        ></div>
-
-        <div
           style="
             display: flex;
             align-items: center;
@@ -1022,7 +1009,7 @@
           >
             Your Tax Health Report
           </h2>
-          <div id="statusBadge" class="status-badge"></div>
+          <!-- <div id="statusBadge" class="status-badge"></div> -->
         </div>
         <p
           id="overallSummary"
@@ -1030,8 +1017,8 @@
             color: var(--text-light);
             font-size: 0.9rem;
             margin: 0 0 1.5rem;
-            line-height: 1.5;
-            text-align: center;
+            line-height: 1.6;
+            text-align: left;
           "
         ></p>
 
@@ -1118,10 +1105,10 @@
       </div>
 
       <div class="footer anim-fade-in-up">
-        &copy; 2026
+        &copy; 2025 – 2026
         <a href="https://taxsupporthub.com/" target="_blank" rel="noopener"
-          >Tax Support Hub</a
-        >. All rights reserved.
+          >TAX SUPPORT HUB (SMC) PRIVATE LIMITED</a
+        >. All Rights Reserved.
       </div>
     </div>
 
@@ -1199,7 +1186,6 @@
         const overallSummary = document.getElementById("overallSummary");
         const concernsList = document.getElementById("concernsList");
         const newCheckBtn = document.getElementById("newCheckBtn");
-        const gaugeContainer = document.getElementById("gaugeContainer");
         const scanTitle = document.getElementById("scanTitle");
         const scanSubtitle = document.getElementById("scanSubtitle");
         const downloadPdfBtn = document.getElementById("downloadPdfBtn");
@@ -1346,7 +1332,6 @@
         function buildPDFContent(data) {
           var health = data.overall_health || "yellow";
           console.log("health", health);
-          var score = health === "green" ? 85 : health === "red" ? 25 : 55;
           var statusLabel =
             health === "green"
               ? "Good Health"
@@ -1354,7 +1339,6 @@
                 ? "Attention Needed"
                 : "Needs Review";
 
-          var gaugeSvg = getGaugeSVG(health, score);
           var areasHtml = "";
           (data.key_areas || []).forEach(function (item) {
             var s = item.status || "yellow";
@@ -1395,9 +1379,6 @@
             '<p style="font-size:12px;color:#666;margin:4px 0 0;">Powered by Tax Support Hub</p>',
             "</div>",
             '<div style="text-align:center;margin-bottom:20px;">',
-            gaugeSvg,
-            "</div>",
-            '<div style="text-align:center;margin-bottom:20px;">',
             '<span style="display:inline-block;padding:4px 16px;border-radius:100px;font-weight:600;font-size:13px;background:' +
               (health === "green"
                 ? "#e6f4ea"
@@ -1436,38 +1417,6 @@
               " &middot; Tax Support Hub</p>",
             "</div>",
             "</div>",
-          ].join("");
-        }
-
-        function getGaugeSVG(health, score) {
-          var r = 54;
-          var circ = 2 * Math.PI * r;
-          var offset = circ * (1 - score / 100);
-          var color =
-            health === "green"
-              ? "#34a853"
-              : health === "red"
-                ? "#ea4335"
-                : "#fbbc04";
-          return [
-            '<svg width="140" height="140" viewBox="0 0 140 140">',
-            '<circle cx="70" cy="70" r="' +
-              r +
-              '" fill="none" stroke="#e8f4fd" stroke-width="10"/>',
-            '<circle cx="70" cy="70" r="' +
-              r +
-              '" fill="none" stroke="' +
-              color +
-              '" stroke-width="10" stroke-dasharray="' +
-              circ +
-              '" stroke-dashoffset="' +
-              offset +
-              '" stroke-linecap="round" transform="rotate(-90, 70, 70)"/>',
-            '<text x="70" y="64" text-anchor="middle" font-size="32" font-weight="700" fill="#213B55">' +
-              score +
-              "</text>",
-            '<text x="70" y="84" text-anchor="middle" font-size="10" fill="#666">Health Score</text>',
-            "</svg>",
           ].join("");
         }
 
@@ -1627,16 +1576,12 @@
           showView(reportCard);
 
           var health = data.overall_health || "yellow";
-          var score = health === "green" ? 85 : health === "red" ? 25 : 55;
           var statusLabel =
             health === "green"
               ? "Good Health"
               : health === "red"
                 ? "Attention Needed"
                 : "Needs Review";
-
-          // Gauge
-          gaugeContainer.innerHTML = getGaugeSVG(health, score);
 
           // Badge
           statusBadge.className = "status-badge " + health;
