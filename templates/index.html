@@ -498,6 +498,32 @@
       }
       .area-card.red {
         border-left-color: var(--danger);
+        background: #fdf3f2;
+      }
+
+      .risk-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 100px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        margin-left: 0.5rem;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .risk-badge.green {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .risk-badge.yellow {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .risk-badge.red {
+        background: #fce8e6;
+        color: #c5221f;
       }
 
       .area-card .area-icon {
@@ -1003,11 +1029,22 @@
             font-size: 1rem;
             font-weight: 600;
             color: var(--secondary);
-            margin: 0 0 0.75rem;
+            margin: 0 0 0.25rem;
           "
         >
-          Key Areas of Focus
+          Areas of Concern
         </h3>
+        <p
+          style="
+            color: var(--text-light);
+            font-size: 0.8rem;
+            margin: 0 0 0.75rem;
+            line-height: 1.5;
+          "
+        >
+          These are the areas the tax authority may question now or in the
+          future.
+        </p>
         <div id="concernsList" class="anim-fade-in-up-stagger"></div>
 
         <div class="next-step-cta" id="nextStepCta">
@@ -1327,14 +1364,41 @@
                 : '<path d="M12 2L2 22h20L12 2z" fill="' +
                   iconColor +
                   '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
+            var riskLevel =
+              item.risk_level ||
+              (s === "red"
+                ? "High Attention Required"
+                : s === "green"
+                  ? "No Concern Noted"
+                  : "Documentation Recommended");
+            var badgeBg =
+              s === "green" ? "#e6f4ea" : s === "red" ? "#fce8e6" : "#fef7e0";
+            var badgeFg =
+              s === "green" ? "#1e7e34" : s === "red" ? "#c5221f" : "#b06000";
+            var badgeHtml =
+              s === "green"
+                ? ""
+                : '<span style="display:inline-block;padding:1px 8px;border-radius:100px;font-size:9px;font-weight:700;background:' +
+                  badgeBg +
+                  ";color:" +
+                  badgeFg +
+                  ';margin-left:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:0.02em;">' +
+                  escapeHtml(riskLevel) +
+                  "</span>";
+            var rowBg = s === "red" ? "background:#fdf3f2;" : "";
             areasHtml +=
-              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px;">' +
+              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px; ' +
+              rowBg +
+              '">' +
               '<svg width="20" height="20" viewBox="0 0 24 24" style="margin-top:2px;">' +
               iconPath +
               "</svg></td>" +
-              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top;">' +
+              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; ' +
+              rowBg +
+              '">' +
               '<div style="font-weight:600;font-size:13px;color:#213B55;margin-bottom:2px;">' +
               escapeHtml(item.area || "") +
+              badgeHtml +
               "</div>" +
               '<div style="font-size:12px;color:#666;line-height:1.4;">' +
               escapeHtml(item.explanation || "") +
@@ -1373,7 +1437,8 @@
               escapeHtml(summary) +
               "</p>",
             "</div>",
-            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 10px;">Key Areas of Focus</h2>',
+            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 4px;">Areas of Concern</h2>',
+            '<p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 10px;">These are the areas the tax authority may question now or in the future.</p>',
             '<table style="width:100%;border-collapse:collapse;">' +
               areasHtml +
               "</table>",
@@ -1568,6 +1633,21 @@
                 : '<path d="M12 2L2 22h20L12 2z" fill="' +
                   iconColor +
                   '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
+            var riskLevel =
+              item.risk_level ||
+              (s === "red"
+                ? "High Attention Required"
+                : s === "green"
+                  ? "No Concern Noted"
+                  : "Documentation Recommended");
+            var badgeHtml =
+              s === "green"
+                ? ""
+                : '<span class="risk-badge ' +
+                  s +
+                  '">' +
+                  escapeHtml(riskLevel) +
+                  "</span>";
             var div = document.createElement("div");
             div.className = "area-card " + s;
             div.innerHTML =
@@ -1576,6 +1656,7 @@
               "</svg></div>" +
               '<div class="area-content"><h4>' +
               escapeHtml(item.area || "Area") +
+              badgeHtml +
               "</h4><p>" +
               escapeHtml(item.explanation || "") +
               "</p></div>";

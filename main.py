@@ -49,6 +49,51 @@ RETRY_BASE_DELAY = 2.0
 TOP_K_CHUNKS = 8
 MAX_CHUNK_CHARS = 6000
 
+REPORT_JSON_SCHEMA = {
+    "name": "tax_health_report",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["overall_health", "overall_summary", "key_areas", "next_step"],
+        "properties": {
+            "overall_health": {
+                "type": "string",
+                "enum": ["red", "yellow", "green"],
+            },
+            "overall_summary": {"type": "string"},
+            "key_areas": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["area", "status", "risk_level", "explanation"],
+                    "properties": {
+                        "area": {"type": "string"},
+                        "status": {
+                            "type": "string",
+                            "enum": ["red", "yellow", "green"],
+                        },
+                        "risk_level": {
+                            "type": "string",
+                            "enum": [
+                                "High Attention Required",
+                                "Supporting Documentation Recommended",
+                                "Review for Consistency",
+                                "No Concern Noted",
+                            ],
+                        },
+                        "explanation": {"type": "string"},
+                    },
+                },
+            },
+            "next_step": {"type": "string"},
+        },
+    },
+}
+
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 
@@ -236,12 +281,14 @@ def build_strict_prompt(tax_return_text: str, chunks: List[str]) -> str:
     if len(context) > MAX_CHUNK_CHARS:
         context = context[:MAX_CHUNK_CHARS] + "\n...[truncated]"
 
-    prompt = f"""You are a tax health checker for Tax Support Hub. Follow these rules STRICTLY:
+    prompt = f"""You are a senior tax risk reviewer for Tax Support Hub. Your ONLY job is to identify RED FLAGS: potential issues in the tax return that the tax authority (the relevant department) may question now or in the future. Follow these rules STRICTLY:
 
 1. ONLY use the provided knowledge base conversation chunks below. DO NOT use any external tax knowledge or your own training data.
-2. If the knowledge base chunks contain NO relevant information about an issue, mark that area as "requires manual review".
-3. Analyze the tax return content provided by the user.
-4. Provide a thorough, helpful, non-technical assessment.
+2. If the knowledge base chunks contain NO relevant information about an issue, use status "yellow", risk_level "Supporting Documentation Recommended", and clearly state in the explanation that a manual review by a tax professional is required. Do NOT invent tax facts from outside the knowledge base.
+3. Focus on red flags and risk areas, NOT on merely describing or summarising the contents of the return.
+4. A red flag is anything the tax authority could question during assessment, audit, verification, or future proceedings - for example a notice, an inquiry, or a request for evidence. Examples include unsupported gifts, excessive cash in hand, wealth reconciliation mismatches, unexplained increases in assets, large cash deposits, bulk/miscellaneous expenses, foreign remittances above the exempt threshold, missing income heads, inconsistent withholding, and unusual transactions that are not backed by documentation.
+5. Do NOT manufacture problems. A large figure is not a risk by itself - assess whether the return is internally consistent first (wealth reconciliation, declared income versus assets, bank balances versus cash in hand). Only raise an area where the tax authority could reasonably question the position.
+6. Write like an experienced tax consultant explaining to a client, in simple client-friendly language.
 
 KNOWLEDGE BASE CHUNKS (the ONLY source of tax knowledge):
 {context}
@@ -252,28 +299,41 @@ TAX RETURN CONTENT TO ANALYZE:
 Respond with valid JSON only (no markdown, no code fences, no extra text). Use this exact structure:
 {{
   "overall_health": "green",
-  "overall_summary": "A detailed, comprehensive paragraph summarising the overall health of the tax return.",
+  "overall_summary": "A detailed, comprehensive paragraph summarising the overall risk posture of the tax return.",
   "key_areas": [
     {{
-      "area": "Name of the area",
-      "status": "green",
-      "explanation": "A detailed, comprehensive explanation written in full paragraphs."
+      "area": "Short name of the red flag or area of concern",
+      "status": "red",
+      "risk_level": "High Attention Required",
+      "explanation": "A detailed, comprehensive paragraph explaining the concern in full paragraphs."
     }}
   ],
   "next_step": "We recommend scheduling a free one-to-one review with a Tax Support Hub professional to discuss your tax return in detail."
 }}
 
 Rules for status values:
-- "green": No issues found, looks good.
-- "yellow": Minor concerns or items that need attention.
-- "red": Significant issues or high-risk areas that require immediate attention.
+- "red": High attention required. A significant red flag that the tax authority may question; supporting documentation and prompt attention are needed.
+- "yellow": Supporting documentation recommended or review for consistency. A genuine but lesser concern that should be backed by evidence.
+- "green": No concern noted in this area.
+
+Rules for risk_level values (use the label that best matches the status):
+- "High Attention Required" for red status.
+- "Supporting Documentation Recommended" or "Review for Consistency" for yellow status.
+- "No Concern Noted" for green status.
 
 Writing requirements (VERY IMPORTANT):
-- Write the overall_summary as a detailed paragraph of at least 3-4 complete sentences covering the overall state of the return.
-- Write each key area explanation as a detailed, comprehensive paragraph of at least 4-6 complete sentences. Explain what was checked, what was found, what it means for the client, and any action that should be taken.
+- Order the key_areas array from the highest risk to the lowest risk, so the most serious red flag comes first.
+- Write the overall_summary as a detailed paragraph of at least 3-4 complete sentences that leads with the risk posture: whether the return contains red flags, which areas are most likely to be questioned, and the overall level of attention required.
+- Write each key area explanation as a detailed, comprehensive paragraph of at least 4-6 complete sentences that answers all of these:
+  1. What was noticed (the observation).
+  2. Why it is a concern (the professional reasoning).
+  3. Why the tax authority may question it in the future (what could trigger a notice, inquiry, audit or request for evidence).
+  4. What could happen if it is not properly supported (the potential exposure, stated professionally and without overstating it).
+  5. The way forward: the recommended action and the documents/evidence the client should keep ready.
 - Use proper paragraph form with complete sentences. Do NOT use bullet points, lists, headings or terse one-line answers.
 - Keep the language client-friendly and non-technical (no jargon).
-- Include exactly 5 key areas in the key_areas array.
+- Use professional, defensible wording. NEVER use language like "this is illegal", "the tax authority will definitely issue a notice", or "a guaranteed audit". Instead say things like "this item may attract scrutiny", "this may require further explanation if selected for review", and "supporting documentation should be retained to substantiate the declared position".
+- Include exactly 5 key areas in the key_areas array, ordered highest risk first.
 - If no knowledge base context is available, set overall_health to "yellow" and explain that a manual review is needed.
 """
     return prompt
@@ -288,6 +348,7 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                 {
                     "area": "Configuration Required",
                     "status": "yellow",
+                    "risk_level": "Review for Consistency",
                     "explanation": "The AI analysis service needs a valid OpenAI API key to function, and this key has not yet been configured. Without it, the automated assistant cannot securely read or analyse your tax return. This is entirely a technical setup matter on our side and does not indicate any problem with the document you uploaded. Please contact the site administrator so the service can be enabled, and in the meantime you can still receive a thorough review from one of our tax professionals."
                 }
             ],
@@ -295,18 +356,26 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
         })
 
     system_prompt = (
-        "You are a tax health checker for Tax Support Hub. You respond only with valid JSON "
-        "following the exact structure requested by the user, using only the provided knowledge base."
+        "You are a senior tax risk reviewer for Tax Support Hub. Your job is to identify red flags "
+        "and areas of concern in tax returns that the tax authority may question now or in the future. "
+        "You respond only with valid JSON following the exact structure requested by the user, using "
+        "only the provided knowledge base."
     )
 
     last_error = None
+    use_structured_outputs = True
     for attempt in range(max_retries):
         try:
             logger.info(f"Calling OpenAI API (attempt {attempt + 1}/{max_retries})")
+            response_format = (
+                {"type": "json_schema", "json_schema": REPORT_JSON_SCHEMA}
+                if use_structured_outputs
+                else {"type": "json_object"}
+            )
             response = client.chat.completions.create(
                 model=OPENAI_MODEL,
                 temperature=0.0,
-                response_format={"type": "json_object"},
+                response_format=response_format,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
@@ -335,11 +404,16 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                         {
                             "area": "AI Safety Filter",
                             "status": "yellow",
+                            "risk_level": "Review for Consistency",
                             "explanation": "The automated system declined to analyse this document because its content was flagged by the safety filter. These filters are deliberately cautious to protect your privacy and to avoid generating guidance from unclear or restricted material. As a result, we cannot offer automated findings on this occasion. A qualified tax professional will review your return manually to check its completeness, its compliance with current rules, the deductions and credits that apply, and any potential risks."
                         }
                     ],
                     "next_step": "Please schedule a free one-to-one review with Tax Support Hub for a thorough manual assessment."
                 })
+            elif use_structured_outputs and ("json_schema" in error_str.lower() or "response_format" in error_str.lower() or "not supported" in error_str.lower() or "400" in error_str or "422" in error_str):
+                logger.info("Structured outputs not supported by this endpoint. Falling back to json_object mode.")
+                use_structured_outputs = False
+                continue
             else:
                 if attempt < max_retries - 1:
                     delay = RETRY_BASE_DELAY * (2 ** attempt)
@@ -355,6 +429,7 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
             {
                 "area": "Service Temporarily Unavailable",
                 "status": "yellow",
+                "risk_level": "Review for Consistency",
                 "explanation": "Our automated analysis service could not be reached after several attempts. This can happen during brief maintenance windows or periods of high demand. Your tax return has not been affected, and no data has been lost. Please retry the analysis in a few minutes, or contact Tax Support Hub to book a manual review so your return can still be assessed properly."
             }
         ],
@@ -390,6 +465,7 @@ def parse_ai_response(response_text: str) -> dict:
                 {
                     "area": "Analysis Response Issue",
                     "status": "yellow",
+                    "risk_level": "Review for Consistency",
                     "explanation": "The AI produced a response that our system could not interpret, so no automated findings could be generated. This occasionally happens when the analysis service returns information in an unexpected format. It does not affect the safety or status of your uploaded document. A tax professional should review this return manually to ensure every section is checked, including completeness, compliance with current rules, deductions and credits, and any potential risks."
                 }
             ],
@@ -405,13 +481,36 @@ def parse_ai_response(response_text: str) -> dict:
             }
         ]
 
+    valid_statuses = {"red", "yellow", "green"}
+    valid_risk_levels = {
+        "High Attention Required",
+        "Supporting Documentation Recommended",
+        "Review for Consistency",
+        "No Concern Noted",
+    }
+
+    normalized_areas = []
     for area in result["key_areas"]:
-        if "status" not in area:
+        if not isinstance(area, dict):
+            logger.warning(f"Skipping malformed key area entry: {type(area).__name__}")
+            continue
+        if "status" not in area or area["status"] not in valid_statuses:
             area["status"] = "yellow"
         if "area" not in area:
             area["area"] = "General"
         if "explanation" not in area:
             area["explanation"] = "This area requires further review by a tax professional."
+        if "risk_level" not in area or area["risk_level"] not in valid_risk_levels:
+            status = area.get("status", "yellow")
+            if status == "red":
+                area["risk_level"] = "High Attention Required"
+            elif status == "green":
+                area["risk_level"] = "No Concern Noted"
+            else:
+                area["risk_level"] = "Supporting Documentation Recommended"
+        normalized_areas.append(area)
+
+    result["key_areas"] = normalized_areas
 
     return result
 
@@ -558,26 +657,31 @@ async def health_check_upload(file: UploadFile = File(...)):
                 {
                     "area": "Knowledge Base Coverage",
                     "status": "yellow",
+                    "risk_level": "Review for Consistency",
                     "explanation": "Our automated system could not find tax scenarios in our knowledge base that closely match the details in your specific return. This happens when a return is unique or contains uncommon arrangements, and it is not a cause for concern. It simply means the automated assistant could not draw a reliable comparison, so a human expert is better placed to give you accurate guidance. Your return will still be looked at carefully by a qualified professional who can give you the attention it deserves."
                 },
                 {
                     "area": "Completeness Check",
                     "status": "yellow",
+                    "risk_level": "Supporting Documentation Recommended",
                     "explanation": "We were unable to automatically verify that all required sections of your tax return are complete. Completeness covers things like your personal details, income statements, deductions and any supporting schedules. Because a full automated comparison could not be run, we cannot confirm at this stage whether anything is missing or outstanding. A tax professional will review every section of your return to make sure nothing has been overlooked."
                 },
                 {
                     "area": "Compliance Review",
                     "status": "yellow",
+                    "risk_level": "Supporting Documentation Recommended",
                     "explanation": "Automated compliance checking could not be completed because there was insufficient reference material to compare against your return. Compliance means making sure your return follows the current tax rules, including the correct treatment of income, expenses and reporting requirements. Without a reliable comparison, we prefer not to guess at your situation. A qualified professional will check your return against the current rules to help ensure it is fully compliant."
                 },
                 {
                     "area": "Deduction & Credit Analysis",
                     "status": "yellow",
+                    "risk_level": "Supporting Documentation Recommended",
                     "explanation": "We could not automatically verify whether all the deductions and tax credits you may be entitled to have been claimed on your return. Deductions reduce the tax you pay, and missing one could mean you pay more than necessary. Because this check requires careful interpretation of your individual circumstances, we recommend having a professional review your expenses and entitlements so that every benefit you are owed is claimed."
                 },
                 {
                     "area": "Risk Assessment",
                     "status": "yellow",
+                    "risk_level": "Review for Consistency",
                     "explanation": "A full risk assessment involves checking for errors, inconsistencies or anything that could attract attention from the tax authority. This kind of review requires judgement and experience, which our automated assistant is not able to provide without a reliable knowledge base match. A qualified tax professional will examine your return for potential risks and help you address them before any issues arise."
                 }
             ],
