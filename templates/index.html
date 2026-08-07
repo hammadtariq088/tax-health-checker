@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tax Health Checker | Tax Support Hub</title>
+    <title>
+      Tax Return Health Checker | TAX SUPPORT HUB (SMC) PRIVATE LIMITED
+    </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
@@ -472,79 +474,6 @@
         display: none;
       }
 
-      /* Key Area Cards */
-      .area-card {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-radius: 10px;
-        border-left: 4px solid;
-        background: var(--gray-light);
-        margin-bottom: 0.75rem;
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease;
-      }
-      .area-card:hover {
-        transform: translateX(4px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-      }
-      .area-card.green {
-        border-left-color: var(--success);
-      }
-      .area-card.yellow {
-        border-left-color: var(--warning);
-      }
-      .area-card.red {
-        border-left-color: var(--danger);
-        background: #fdf3f2;
-      }
-
-      .risk-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 100px;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        margin-left: 0.5rem;
-        vertical-align: middle;
-        white-space: nowrap;
-      }
-      .risk-badge.green {
-        background: #e6f4ea;
-        color: #1e7e34;
-      }
-      .risk-badge.yellow {
-        background: #fef7e0;
-        color: #b06000;
-      }
-      .risk-badge.red {
-        background: #fce8e6;
-        color: #c5221f;
-      }
-
-      .area-card .area-icon {
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        margin-top: 2px;
-      }
-      .area-card .area-content h4 {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--secondary);
-        margin: 0 0 0.2rem;
-      }
-      .area-card .area-content p {
-        font-size: 0.9rem;
-        color: var(--text-light);
-        margin: 0;
-        line-height: 1.6;
-      }
-
       /* CTA Section */
       .next-step-cta {
         background: linear-gradient(
@@ -772,13 +701,269 @@
           height: 48px;
         }
       }
+
+      /* ---- Sections A-F report ---- */
+      .report-section {
+        margin-top: 1.5rem;
+      }
+      .report-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 0 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid var(--primary-light);
+      }
+      .risk-chip {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 100px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+        margin-bottom: 2px;
+      }
+      .risk-chip.critical {
+        background: #fce8e6;
+        color: #c5221f;
+      }
+      .risk-chip.high {
+        background: #fef0e0;
+        color: #b06000;
+      }
+      .risk-chip.medium {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .risk-chip.low {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .risk-chip.advisory {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .rating-badge {
+        display: inline-block;
+        padding: 6px 20px;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .rating-badge.critical {
+        background: #fce8e6;
+        color: #c5221f;
+      }
+      .rating-badge.high {
+        background: #fef0e0;
+        color: #b06000;
+      }
+      .rating-badge.medium {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .rating-badge.low {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .rating-badge.advisory {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin: 1rem 0;
+      }
+      .stat-card {
+        background: var(--gray-light);
+        border: 1px solid var(--gray-border);
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+      }
+      .stat-card .label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--text-light);
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .stat-card .value {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        word-break: break-word;
+      }
+      .list-plain {
+        margin: 0;
+        padding: 0 0 0 1.1rem;
+      }
+      .list-plain li {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        line-height: 1.55;
+        margin-bottom: 0.4rem;
+      }
+      .filing-callout {
+        background: var(--primary-light);
+        border-left: 4px solid var(--primary);
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        margin: 0.75rem 0;
+      }
+      .filing-callout .label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--primary);
+        margin-bottom: 0.25rem;
+      }
+      .filing-callout p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--secondary);
+        line-height: 1.5;
+      }
+      .area-detail {
+        border: 1px solid var(--gray-border);
+        border-left: 4px solid var(--gray-border);
+        border-radius: 10px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 0.9rem;
+        background: var(--gray-light);
+      }
+      .area-detail.critical {
+        border-left-color: #c5221f;
+        background: #fdf3f2;
+      }
+      .area-detail.high {
+        border-left-color: #b06000;
+      }
+      .area-detail.medium {
+        border-left-color: #fbbc04;
+      }
+      .area-detail.low {
+        border-left-color: #34a853;
+      }
+      .area-detail.advisory {
+        border-left-color: #1a73e8;
+      }
+      .area-detail .area-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.4rem;
+      }
+      .area-detail .area-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0;
+      }
+      .area-detail table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .area-detail td {
+        padding: 0.35rem 0;
+        font-size: 0.85rem;
+        vertical-align: top;
+      }
+      .area-detail td.k {
+        width: 38%;
+        color: var(--text-light);
+        font-weight: 600;
+      }
+      .area-detail td.v {
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .area-detail tr + tr td {
+        border-top: 1px solid #e6eaf0;
+      }
+      .matrix-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--gray-border);
+        border-radius: 10px;
+      }
+      .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+        min-width: 920px;
+      }
+      .matrix-table th {
+        background: var(--secondary);
+        color: #fff;
+        text-align: left;
+        padding: 0.5rem 0.6rem;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .matrix-table td {
+        padding: 0.5rem 0.6rem;
+        border-top: 1px solid var(--gray-border);
+        vertical-align: top;
+        color: var(--text);
+        line-height: 1.45;
+      }
+      .matrix-table tr:nth-child(even) td {
+        background: #fafbfc;
+      }
+      .plan-block {
+        margin-bottom: 1rem;
+      }
+      .plan-block h5 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 0 0.35rem;
+      }
+      .plan-block .phase-label {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 2px 8px;
+        border-radius: 100px;
+        margin-right: 0.4rem;
+      }
+      .phase-label.pf {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .phase-label.af {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .phase-label.on {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .phase-label.fu {
+        background: #f3e8fd;
+        color: #8430ce;
+      }
     </style>
   </head>
   <body>
     <!-- Brand Header -->
     <div class="brand-header">
-      <h1><span class="logo-text">Tax Health Checker</span></h1>
-      <div class="subtitle">Powered by Tax Support Hub</div>
+      <h1><span class="logo-text">Tax Return Health Checker</span></h1>
+      <div class="subtitle">
+        Powered by TAX SUPPORT HUB (SMC) PRIVATE LIMITED
+      </div>
     </div>
 
     <div style="max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem">
@@ -792,7 +977,7 @@
             margin: 0 0 0.25rem;
           "
         >
-          Check Your Tax Return Health
+          How Healthy Is Your Tax Return?
         </h2>
         <p
           style="
@@ -802,8 +987,9 @@
             line-height: 1.5;
           "
         >
-          Upload your tax return PDF and our AI will analyze it against our
-          knowledge base.
+          Upload your return (PDF) and our AI will scan it against our Pakistan
+          tax knowledge base to surface weaknesses, risks, and compliance gaps
+          so you can fix issues before the tax authority does.
         </p>
         <div
           style="
@@ -813,7 +999,7 @@
             margin-bottom: 0.5rem;
           "
         >
-          <span id="kbStatus">Checking knowledge base...</span>
+          <span id="kbStatus">Checking Knowledge Base...</span>
         </div>
 
         <div class="drop-zone" id="dropZone">
@@ -1010,42 +1196,12 @@
               margin: 0;
             "
           >
-            Your Tax Health Report
+            Your Tax Return Health Report
           </h2>
         </div>
-        <p
-          id="overallSummary"
-          style="
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin: 0 0 1.5rem;
-            line-height: 1.6;
-            text-align: left;
-          "
-        ></p>
+        <div id="healthSummaryBlock" class="anim-fade-in-up"></div>
 
-        <h3
-          style="
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--secondary);
-            margin: 0 0 0.25rem;
-          "
-        >
-          Areas of Concern
-        </h3>
-        <p
-          style="
-            color: var(--text-light);
-            font-size: 0.8rem;
-            margin: 0 0 0.75rem;
-            line-height: 1.5;
-          "
-        >
-          These are the areas the tax authority may question now or in the
-          future.
-        </p>
-        <div id="concernsList" class="anim-fade-in-up-stagger"></div>
+        <div id="reportSections" class="anim-fade-in-up"></div>
 
         <div class="next-step-cta" id="nextStepCta">
           <h3>Get a Free One-to-One Review</h3>
@@ -1195,8 +1351,9 @@
         const errorCard = document.getElementById("errorCard");
         const errorMessage = document.getElementById("errorMessage");
         const retryBtn = document.getElementById("retryBtn");
-        const overallSummary = document.getElementById("overallSummary");
-        const concernsList = document.getElementById("concernsList");
+        const healthSummaryBlock =
+          document.getElementById("healthSummaryBlock");
+        const reportSections = document.getElementById("reportSections");
         const newCheckBtn = document.getElementById("newCheckBtn");
         const scanTitle = document.getElementById("scanTitle");
         const scanSubtitle = document.getElementById("scanSubtitle");
@@ -1342,68 +1499,189 @@
 
         // ---- PDF Generation ----
         function buildPDFContent(data) {
-          var health = data.overall_health || "yellow";
-          console.log("health", health);
-          var statusLabel =
-            health === "green"
-              ? "Good Health"
-              : health === "red"
-                ? "Attention Needed"
-                : "Needs Review";
+          var rating = data.overall_risk_rating || "Advisory";
+          var rk = String(rating).toLowerCase();
+          var ratingBg = {
+            critical: "#fce8e6",
+            high: "#fef0e0",
+            medium: "#fef7e0",
+            low: "#e6f4ea",
+            advisory: "#e8f0fe",
+          };
+          var ratingFg = {
+            critical: "#c5221f",
+            high: "#b06000",
+            medium: "#b06000",
+            low: "#1e7e34",
+            advisory: "#1a73e8",
+          };
+
+          function chip(label, key) {
+            var k = String(key || label || "advisory").toLowerCase();
+            return (
+              '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:10px;font-weight:700;background:' +
+              (ratingBg[k] || "#e8f0fe") +
+              ";color:" +
+              (ratingFg[k] || "#1a73e8") +
+              ';margin:2px 3px 2px 0;text-transform:uppercase;letter-spacing:0.02em;">' +
+              escapeHtml(label) +
+              "</span>"
+            );
+          }
+
+          var counts = data.risk_counts || {};
+          var countsHtml = "";
+          ["critical", "high", "medium", "low", "advisory"].forEach(
+            function (k) {
+              var n = typeof counts[k] === "number" ? counts[k] : 0;
+              var label = k.charAt(0).toUpperCase() + k.slice(1) + ": " + n;
+              countsHtml += chip(label, k);
+            },
+          );
+
+          function pdfRow(label, value) {
+            return (
+              '<tr><td style="padding:4px 8px;border-top:1px solid #e6eaf0;font-weight:600;color:#666;width:34%;vertical-align:top;font-size:11px;">' +
+              label +
+              '</td><td style="padding:4px 8px;border-top:1px solid #e6eaf0;vertical-align:top;font-size:11px;line-height:1.45;color:#333;">' +
+              escapeHtml(value || "") +
+              "</td></tr>"
+            );
+          }
 
           var areasHtml = "";
-          (data.key_areas || []).forEach(function (item) {
-            var s = item.status || "yellow";
-            var iconColor =
-              s === "green" ? "#34a853" : s === "red" ? "#ea4335" : "#fbbc04";
-            var iconPath =
-              s === "green"
-                ? '<circle cx="12" cy="12" r="10" fill="' +
-                  iconColor +
-                  '"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-                : '<path d="M12 2L2 22h20L12 2z" fill="' +
-                  iconColor +
-                  '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
-            var riskLevel =
-              item.risk_level ||
-              (s === "red"
-                ? "High Attention Required"
-                : s === "green"
-                  ? "No Concern Noted"
-                  : "Documentation Recommended");
-            var badgeBg =
-              s === "green" ? "#e6f4ea" : s === "red" ? "#fce8e6" : "#fef7e0";
-            var badgeFg =
-              s === "green" ? "#1e7e34" : s === "red" ? "#c5221f" : "#b06000";
-            var badgeHtml =
-              s === "green"
-                ? ""
-                : '<span style="display:inline-block;padding:1px 8px;border-radius:100px;font-size:9px;font-weight:700;background:' +
-                  badgeBg +
-                  ";color:" +
-                  badgeFg +
-                  ';margin-left:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:0.02em;">' +
-                  escapeHtml(riskLevel) +
-                  "</span>";
-            var rowBg = s === "red" ? "background:#fdf3f2;" : "";
+          (data.top_areas_of_concern || []).forEach(function (a) {
+            var k = String(a.risk_rating || "advisory").toLowerCase();
+            var left = ratingFg[k] || "#1a73e8";
             areasHtml +=
-              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px; ' +
-              rowBg +
-              '">' +
-              '<svg width="20" height="20" viewBox="0 0 24 24" style="margin-top:2px;">' +
-              iconPath +
-              "</svg></td>" +
-              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; ' +
-              rowBg +
-              '">' +
-              '<div style="font-weight:600;font-size:13px;color:#213B55;margin-bottom:2px;">' +
-              escapeHtml(item.area || "") +
-              badgeHtml +
+              '<div style="border:1px solid #e0e6ed;border-left:4px solid ' +
+              left +
+              ';border-radius:8px;padding:10px 12px;margin-bottom:10px;">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+              '<div style="font-weight:700;font-size:13px;color:#213B55;">' +
+              escapeHtml(a.area || "") +
               "</div>" +
-              '<div style="font-size:12px;color:#666;line-height:1.4;">' +
-              escapeHtml(item.explanation || "") +
-              "</div></td></tr>";
+              chip(a.risk_rating || "Advisory", k) +
+              "</div>" +
+              '<table style="width:100%;border-collapse:collapse;">' +
+              pdfRow("Amount Involved", a.amount) +
+              pdfRow("What Appears Weak", a.observation) +
+              pdfRow("One-Line Diagnostic", a.diagnostic) +
+              pdfRow("Why It Matters", a.why_it_matters) +
+              pdfRow("Relevant Provision", a.provision) +
+              pdfRow("Evidence Level", a.evidence_level) +
+              pdfRow("Possible FBR Query", a.possible_fbr_query) +
+              pdfRow("Documents Required", a.documents_required) +
+              pdfRow("Immediate Action", a.immediate_action) +
+              pdfRow("Preventive Measure", a.preventive_measure) +
+              "</table></div>";
           });
+
+          var matrixHtml = "";
+          (data.risk_matrix || []).forEach(function (m) {
+            matrixHtml +=
+              "<tr>" +
+              '<td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.ref || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;font-weight:600;">' +
+              escapeHtml(m.area || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;line-height:1.35;">' +
+              escapeHtml(m.diagnostic_observation || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.amount || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.potential_exposure || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.provision || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.risk || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;">' +
+              escapeHtml(m.evidence || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;line-height:1.3;">' +
+              escapeHtml(m.corrective_action || "") +
+              '</td><td style="padding:4px 6px;border-top:1px solid #e0e6ed;font-size:9px;line-height:1.3;">' +
+              escapeHtml(m.preventive_action || "") +
+              "</td></tr>";
+          });
+
+          var missingHtml = (data.missing_documents_checklist || [])
+            .map(function (d) {
+              return (
+                '<li style="font-size:11px;color:#333;line-height:1.5;margin-bottom:4px;">' +
+                escapeHtml(d) +
+                "</li>"
+              );
+            })
+            .join("");
+
+          var plan = data.corrective_action_plan || {};
+          var phases = [
+            ["before_filing", "Before Filing", "#e8f0fe", "#1a73e8"],
+            [
+              "after_filing_before_notice",
+              "After Filing / Before Notice",
+              "#e6f4ea",
+              "#1e7e34",
+            ],
+            [
+              "on_receipt_of_notice",
+              "On Receipt of Notice",
+              "#fef7e0",
+              "#b06000",
+            ],
+            [
+              "future_preventive_controls",
+              "Future Preventive Controls",
+              "#f3e8fd",
+              "#8430ce",
+            ],
+          ];
+          var planHtml = "";
+          phases.forEach(function (ph) {
+            var items = plan[ph[0]] || [];
+            planHtml +=
+              '<div style="margin-bottom:10px;">' +
+              '<span style="display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;padding:2px 8px;border-radius:100px;background:' +
+              ph[2] +
+              ";color:" +
+              ph[3] +
+              ';margin-bottom:4px;">' +
+              ph[1] +
+              "</span>" +
+              (items.length
+                ? '<ul style="margin:0;padding:0 0 0 16px;">' +
+                  items
+                    .map(function (i) {
+                      return (
+                        '<li style="font-size:11px;color:#333;line-height:1.45;margin-bottom:3px;">' +
+                        escapeHtml(i) +
+                        "</li>"
+                      );
+                    })
+                    .join("") +
+                  "</ul>"
+                : '<p style="font-size:10px;color:#888;margin:2px 0 0;">No specific action required at this stage.</p>') +
+              "</div>";
+          });
+
+          var weaknessesHtml = (data.top_five_weaknesses || [])
+            .map(function (w) {
+              return (
+                '<li style="font-size:11px;color:#333;line-height:1.5;margin-bottom:4px;">' +
+                escapeHtml(w) +
+                "</li>"
+              );
+            })
+            .join("");
+          var actionsHtml = (data.immediate_actions || [])
+            .map(function (a) {
+              return (
+                '<li style="font-size:11px;color:#333;line-height:1.5;margin-bottom:4px;">' +
+                escapeHtml(a) +
+                "</li>"
+              );
+            })
+            .join("");
 
           var summary =
             data.overall_summary || "Your tax return has been reviewed.";
@@ -1411,44 +1689,108 @@
             data.next_step ||
             "We recommend scheduling a free review with Tax Support Hub.";
 
+          function sectionTitle(title) {
+            return (
+              '<h2 style="font-size:14px;font-weight:700;color:#213B55;margin:22px 0 8px;padding-bottom:6px;border-bottom:2px solid #cde6f7;">' +
+              title +
+              "</h2>"
+            );
+          }
+
           return [
             '<div style="padding:40px 36px;font-family:Inter, sans-serif;color:#333;max-width:600px;margin:0 auto;">',
-            '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:24px;">',
+            '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:20px;">',
             '<h1 style="font-size:22px;font-weight:800;color:#0078C8;margin:0;">Tax Health Checker</h1>',
-            '<p style="font-size:12px;color:#666;margin:4px 0 0;">Powered by Tax Support Hub</p>',
+            '<p style="font-size:12px;color:#666;margin:4px 0 0;">Tax Return Risk, Weakness &amp; Preventive Compliance Review</p>',
             "</div>",
-            '<div style="text-align:center;margin-bottom:20px;">',
-            '<span style="display:inline-block;padding:4px 16px;border-radius:100px;font-weight:600;font-size:13px;background:' +
-              (health === "green"
-                ? "#e6f4ea"
-                : health === "red"
-                  ? "#fce8e6"
-                  : "#fef7e0") +
+            '<div style="text-align:center;margin-bottom:8px;">',
+            '<span style="display:inline-block;padding:5px 18px;border-radius:100px;font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;background:' +
+              (ratingBg[rk] || "#e8f0fe") +
               ";color:" +
-              (health === "green"
-                ? "#1e7e34"
-                : health === "red"
-                  ? "#c5221f"
-                  : "#b06000") +
-              ';"">' +
-              statusLabel +
+              (ratingFg[rk] || "#1a73e8") +
+              ';">' +
+              escapeHtml(rating) +
               "</span>",
-            '<p style="font-size:13px;color:#666;line-height:1.5;margin-top:10px;">' +
+            "</div>",
+            '<div style="text-align:center;margin-bottom:14px;">' +
+              countsHtml +
+              "</div>",
+            '<p style="font-size:13px;color:#666;line-height:1.5;margin-top:8px;">' +
               escapeHtml(summary) +
               "</p>",
-            "</div>",
-            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 4px;">Areas of Concern</h2>',
-            '<p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 10px;">These are the areas the tax authority may question now or in the future.</p>',
-            '<table style="width:100%;border-collapse:collapse;">' +
-              areasHtml +
+            '<table style="width:100%;border-collapse:separate;border-spacing:6px;margin:6px -6px 12px;">' +
+              "<tr>" +
+              '<td style="width:50%;background:#f2f7fb;border:1px solid #dbe9f5;border-radius:8px;padding:10px 12px;">' +
+              '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:#5b7389;">Amount Reviewed</div>' +
+              '<div style="font-size:13px;font-weight:700;color:#213B55;margin-top:3px;">' +
+              escapeHtml(
+                data.total_amount_reviewed ||
+                  "Not determinable from the return",
+              ) +
+              "</div></td>" +
+              '<td style="width:50%;background:#f2f7fb;border:1px solid #dbe9f5;border-radius:8px;padding:10px 12px;">' +
+              '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:#5b7389;">Potential Exposure</div>' +
+              '<div style="font-size:13px;font-weight:700;color:#213B55;margin-top:3px;">' +
+              escapeHtml(
+                data.total_amount_exposed || "Not determinable from the return",
+              ) +
+              "</div></td></tr>" +
               "</table>",
-            '<div style="background:#0078C8;color:white;border-radius:8px;padding:16px;text-align:center;margin-top:20px;">',
+            '<div style="background:#e8f4fd;border-left:4px solid #0078C8;border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
+              '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:#0078C8;margin-bottom:3px;">Filing Recommendation</div>' +
+              '<p style="font-size:12px;color:#213B55;margin:0;line-height:1.5;">' +
+              escapeHtml(data.filing_recommendation || "") +
+              "</p></div>",
+            (weaknessesHtml
+              ? sectionTitle("Top Five Weaknesses") +
+                '<ul style="margin:0;padding:0 0 0 16px;">' +
+                weaknessesHtml +
+                "</ul>"
+              : "") +
+              (actionsHtml
+                ? sectionTitle("Immediate Actions") +
+                  '<ul style="margin:0;padding:0 0 0 16px;">' +
+                  actionsHtml +
+                  "</ul>"
+                : ""),
+            sectionTitle("Top Areas of Concern"),
+            '<p style="font-size:11px;color:#888;margin:-4px 0 10px;">These are the areas the tax authority may question now or in the future.</p>',
+            areasHtml,
+            sectionTitle("Detailed Risk Matrix"),
+            '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">' +
+              "<thead><tr>" +
+              '<th style="width:20px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">#</th>' +
+              '<th style="width:56px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Area</th>' +
+              '<th style="background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Observation</th>' +
+              '<th style="width:48px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Amount</th>' +
+              '<th style="width:48px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Exposure</th>' +
+              '<th style="width:44px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Provision</th>' +
+              '<th style="width:44px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Risk</th>' +
+              '<th style="width:40px;background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Evidence</th>' +
+              '<th style="background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Corrective</th>' +
+              '<th style="background:#213B55;color:#fff;padding:5px 4px;font-size:8px;text-transform:uppercase;">Preventive</th>' +
+              "</tr></thead><tbody>" +
+              matrixHtml +
+              "</tbody></table>",
+            sectionTitle("Missing Documents Checklist"),
+            '<ul style="margin:0;padding:0 0 0 16px;">' +
+              (missingHtml ||
+                '<li style="font-size:11px;color:#888;">No missing documents identified.</li>') +
+              "</ul>",
+            sectionTitle("Corrective Action Plan"),
+            planHtml,
+            sectionTitle("Conclusion"),
+            '<p style="font-size:12px;color:#333;line-height:1.5;margin:0;">' +
+              escapeHtml(data.client_friendly_conclusion || "") +
+              "</p>",
+            '<div style="background:#0078C8;color:white;border-radius:8px;padding:16px;text-align:center;margin-top:22px;">',
             '<p style="font-size:13px;margin:0;line-height:1.5;">' +
               escapeHtml(nextStep) +
               "</p>",
             "</div>",
-            '<div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #d0d7de;">',
-            '<p style="font-size:10px;color:#999;margin:0;">Generated on ' +
+            '<div style="text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid #d0d7de;">',
+            '<p style="font-size:9px;color:#999;margin:0;line-height:1.5;">Tax Support Hub &middot; taxsupporthub.com &middot; This report is advisory in nature and does not constitute a legal opinion. Further legal verification may be required.</p>',
+            '<p style="font-size:10px;color:#999;margin:6px 0 0;">Generated on ' +
               new Date().toLocaleDateString("en-AU", {
                 year: "numeric",
                 month: "long",
@@ -1612,69 +1954,216 @@
         }
 
         // ---- Display Report ----
+        function ratingSuffix(r) {
+          return String(r || "").toLowerCase();
+        }
+
         function displayReport(data) {
           showView(reportCard);
 
-          overallSummary.textContent =
-            data.overall_summary || "Your tax return has been reviewed.";
-
-          // Key areas
-          concernsList.innerHTML = "";
-          var areas = data.key_areas || [];
-          areas.forEach(function (item) {
-            var s = item.status || "yellow";
-            var iconColor =
-              s === "green" ? "#34a853" : s === "red" ? "#ea4335" : "#fbbc04";
-            var iconPath =
-              s === "green"
-                ? '<circle cx="12" cy="12" r="10" fill="' +
-                  iconColor +
-                  '"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-                : '<path d="M12 2L2 22h20L12 2z" fill="' +
-                  iconColor +
-                  '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
-            var riskLevel =
-              item.risk_level ||
-              (s === "red"
-                ? "High Attention Required"
-                : s === "green"
-                  ? "No Concern Noted"
-                  : "Documentation Recommended");
-            var badgeHtml =
-              s === "green"
-                ? ""
-                : '<span class="risk-badge ' +
-                  s +
-                  '">' +
-                  escapeHtml(riskLevel) +
-                  "</span>";
-            var div = document.createElement("div");
-            div.className = "area-card " + s;
-            div.innerHTML =
-              '<div class="area-icon"><svg width="24" height="24" viewBox="0 0 24 24">' +
-              iconPath +
-              "</svg></div>" +
-              '<div class="area-content"><h4>' +
-              escapeHtml(item.area || "Area") +
-              badgeHtml +
-              "</h4><p>" +
-              escapeHtml(item.explanation || "") +
-              "</p></div>";
-            concernsList.appendChild(div);
+          var rating = data.overall_risk_rating || "Advisory";
+          var counts = data.risk_counts || {};
+          var countKeys = ["critical", "high", "medium", "low", "advisory"];
+          var countLabels = {
+            critical: "Critical",
+            high: "High",
+            medium: "Medium",
+            low: "Low",
+            advisory: "Advisory",
+          };
+          var countsHtml = "";
+          countKeys.forEach(function (k) {
+            var n = typeof counts[k] === "number" ? counts[k] : 0;
+            countsHtml +=
+              '<span class="risk-chip ' +
+              k +
+              '" style="margin-right:4px;">' +
+              countLabels[k] +
+              ": " +
+              n +
+              "</span>";
           });
 
-          // Re-trigger stagger animation
-          concernsList.classList.remove("anim-fade-in-up-stagger");
-          void concernsList.offsetWidth;
-          concernsList.classList.add("anim-fade-in-up-stagger");
+          var weaknesses = (data.top_five_weaknesses || [])
+            .map(function (w) {
+              return "<li>" + escapeHtml(w) + "</li>";
+            })
+            .join("");
+          var actions = (data.immediate_actions || [])
+            .map(function (a) {
+              return "<li>" + escapeHtml(a) + "</li>";
+            })
+            .join("");
+
+          var healthHtml =
+            '<div style="text-align:center;margin-bottom:0.5rem;">' +
+            '<span class="rating-badge ' +
+            ratingSuffix(rating) +
+            '">' +
+            escapeHtml(rating) +
+            "</span></div>" +
+            '<div style="text-align:center;margin-bottom:1rem;">' +
+            countsHtml +
+            "</div>" +
+            '<div class="stat-grid">' +
+            '<div class="stat-card"><div class="label">Amount Reviewed</div><div class="value">' +
+            escapeHtml(
+              data.total_amount_reviewed || "Not determinable from the return",
+            ) +
+            "</div></div>" +
+            '<div class="stat-card"><div class="label">Potential Exposure</div><div class="value">' +
+            escapeHtml(
+              data.total_amount_exposed || "Not determinable from the return",
+            ) +
+            "</div></div>" +
+            "</div>" +
+            '<p style="color:var(--text-light);font-size:0.9rem;line-height:1.6;margin:0 0 1rem;">' +
+            escapeHtml(data.overall_summary || "") +
+            "</p>" +
+            '<div class="filing-callout"><div class="label">Filing Recommendation</div><p>' +
+            escapeHtml(data.filing_recommendation || "") +
+            "</p></div>";
+          healthSummaryBlock.innerHTML = healthHtml;
+
+          var sectionsHtml = "";
+
+          // Top Areas of Concern
+          sectionsHtml +=
+            '<div class="report-section"><h3 class="report-section-title">Top Areas of Concern</h3>' +
+            '<p style="color:var(--text-light);font-size:0.8rem;margin:-0.25rem 0 0.75rem;line-height:1.5;">These are the areas the tax authority may question now or in the future.</p>';
+          (data.top_areas_of_concern || []).forEach(function (a) {
+            var rows = [
+              ["Amount Involved", a.amount],
+              ["What Appears Weak", a.observation],
+              ["One-Line Diagnostic", a.diagnostic],
+              ["Why It Matters", a.why_it_matters],
+              ["Relevant Provision", a.provision],
+              ["Evidence Level", a.evidence_level],
+              ["Possible FBR Query", a.possible_fbr_query],
+              ["Documents Required", a.documents_required],
+              ["Immediate Action", a.immediate_action],
+              ["Preventive Measure", a.preventive_measure],
+            ];
+            var rowsHtml = rows
+              .map(function (r) {
+                return (
+                  '<tr><td class="k">' +
+                  r[0] +
+                  '</td><td class="v">' +
+                  escapeHtml(r[1] || "") +
+                  "</td></tr>"
+                );
+              })
+              .join("");
+            sectionsHtml +=
+              '<div class="area-detail ' +
+              ratingSuffix(a.risk_rating) +
+              '">' +
+              '<div class="area-head"><h4 class="area-name">' +
+              escapeHtml(a.area || "") +
+              '</h4><span class="risk-chip ' +
+              ratingSuffix(a.risk_rating) +
+              '">' +
+              escapeHtml(a.risk_rating || "Advisory") +
+              "</span></div><table>" +
+              rowsHtml +
+              "</table></div>";
+          });
+          sectionsHtml += "</div>";
+
+          // Detailed Risk Matrix
+          sectionsHtml +=
+            '<div class="report-section"><h3 class="report-section-title">Detailed Risk Matrix</h3>' +
+            '<div class="matrix-wrap"><table class="matrix-table"><thead><tr>' +
+            "<th>#</th><th>Area</th><th>Diagnostic Observation</th><th>Amount</th><th>Potential Exposure</th><th>Provision</th><th>Risk</th><th>Evidence</th><th>Corrective Action</th><th>Preventive Action</th>" +
+            "</tr></thead><tbody>";
+          (data.risk_matrix || []).forEach(function (m) {
+            sectionsHtml +=
+              "<tr><td>" +
+              escapeHtml(m.ref || "") +
+              "</td><td>" +
+              escapeHtml(m.area || "") +
+              "</td><td>" +
+              escapeHtml(m.diagnostic_observation || "") +
+              "</td><td>" +
+              escapeHtml(m.amount || "") +
+              "</td><td>" +
+              escapeHtml(m.potential_exposure || "") +
+              "</td><td>" +
+              escapeHtml(m.provision || "") +
+              "</td><td>" +
+              escapeHtml(m.risk || "") +
+              "</td><td>" +
+              escapeHtml(m.evidence || "") +
+              "</td><td>" +
+              escapeHtml(m.corrective_action || "") +
+              "</td><td>" +
+              escapeHtml(m.preventive_action || "") +
+              "</td></tr>";
+          });
+          sectionsHtml += "</tbody></table></div></div>";
+
+          // Missing Documents Checklist
+          sectionsHtml +=
+            '<div class="report-section"><h3 class="report-section-title">Missing Documents Checklist</h3><ul class="list-plain">';
+          (data.missing_documents_checklist || []).forEach(function (d) {
+            sectionsHtml += "<li>" + escapeHtml(d) + "</li>";
+          });
+          sectionsHtml += "</ul></div>";
+
+          // Corrective Action Plan
+          var plan = data.corrective_action_plan || {};
+          var phases = [
+            ["before_filing", "Before Filing", "pf"],
+            [
+              "after_filing_before_notice",
+              "After Filing / Before Notice",
+              "af",
+            ],
+            ["on_receipt_of_notice", "On Receipt of Notice", "on"],
+            ["future_preventive_controls", "Future Preventive Controls", "fu"],
+          ];
+          sectionsHtml +=
+            '<div class="report-section"><h3 class="report-section-title">Corrective Action Plan</h3>';
+          phases.forEach(function (ph) {
+            var items = plan[ph[0]] || [];
+            sectionsHtml +=
+              '<div class="plan-block"><h5><span class="phase-label ' +
+              ph[2] +
+              '">' +
+              ph[1] +
+              "</span></h5>";
+            if (items.length) {
+              sectionsHtml +=
+                '<ul class="list-plain">' +
+                items
+                  .map(function (i) {
+                    return "<li>" + escapeHtml(i) + "</li>";
+                  })
+                  .join("") +
+                "</ul>";
+            } else {
+              sectionsHtml +=
+                '<p style="font-size:0.85rem;color:var(--text-light);margin:0.25rem 0 0;">No specific action required at this stage.</p>';
+            }
+            sectionsHtml += "</div>";
+          });
+          sectionsHtml += "</div>";
+
+          // Client-Friendly Conclusion
+          sectionsHtml +=
+            '<div class="report-section"><h3 class="report-section-title">Conclusion</h3>' +
+            '<p style="color:var(--text-light);font-size:0.9rem;line-height:1.6;margin:0;">' +
+            escapeHtml(data.client_friendly_conclusion || "") +
+            "</p></div>";
+
+          reportSections.innerHTML = sectionsHtml;
 
           // CTA text
           if (data.next_step) {
             ctaText.textContent = data.next_step;
           }
 
-          // Update WhatsApp link with the tax return info (optional: could include a reference)
-          // Scroll to top of report
           reportCard.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
@@ -1742,14 +2231,14 @@
           .then(function (s) {
             var el = document.getElementById("kbStatus");
             if (s.chunks > 0) {
-              el.textContent = "Knowledge base loaded";
+              el.textContent = "Knowledge Base Loaded...";
             } else {
-              el.textContent = "Knowledge base empty";
+              el.textContent = "Knowledge Base Empty";
             }
           })
           .catch(function () {
             document.getElementById("kbStatus").textContent =
-              "Knowledge base unavailable";
+              "Knowledge Base Unavailable";
           });
 
         // ---- Init ----

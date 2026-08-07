@@ -2,7 +2,7 @@
 
 An AI-powered tax return health check tool built for **Tax Support Hub** (https://taxsupporthub.com/).
 
-Users upload a PDF of their tax return and receive a professional, non-technical health report with a visual health gauge, status rating, key areas of focus, PDF download, and WhatsApp booking integration.
+Users upload a PDF of their tax return and receive a **Tax Return Risk, Weakness & Preventive Compliance Review** (Sections A–F) — overall risk rating, risk counts, amounts reviewed/exposed, top 5 weaknesses, immediate actions, filing recommendation, 5 top areas of concern (each with 12 diagnostic fields), a detailed risk matrix, missing documents checklist, a 4-phase corrective action plan, and a client-friendly conclusion — plus PDF download and WhatsApp booking integration.
 
 ---
 
@@ -12,8 +12,8 @@ Users upload a PDF of their tax return and receive a professional, non-technical
 2. Text is extracted from the PDF using pdfplumber
 3. Knowledge chunks are embedded using **OpenAI** (`text-embedding-3-small`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
-5. OpenAI (`gpt-4o-mini`) analyzes the return using only your knowledge base
-6. A professional report is returned with a health gauge, overall status, 5 key areas with icons, and next steps
+5. OpenAI (`gpt-4o`) analyzes the return using **OpenAI Structured Outputs** (strict JSON schema, `temperature=0.0`) against your knowledge base only
+6. A professional report is returned with an overall risk rating (Critical/High/Medium/Low/Advisory), risk counts, top areas of concern, a risk matrix, and next steps
 7. The report can be downloaded as PDF (email/phone collected first) or shared via WhatsApp
 
 **No user data is stored — uploaded PDFs are processed in memory only.**
@@ -87,7 +87,7 @@ Edit the `.env` file in the project root:
 
 ```
 OPENAI_API_KEY=sk-your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-4o
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
@@ -156,10 +156,11 @@ curl http://localhost:8000/api/kb-status
 ## Important Notes
 
 - **Embeddings** are generated via the OpenAI API (`text-embedding-3-small`, 1536 dims) — no local ML models, no heavy CPU/RAM usage
-- **AI analysis** uses OpenAI (`gpt-4o-mini` by default, configurable via `OPENAI_MODEL`)
+- **AI analysis** uses OpenAI (`gpt-4o` by default, configurable via `OPENAI_MODEL`) with Structured Outputs (strict schema) at `temperature=0.0`
 - **Vector search** uses pgvector with cosine similarity (`<=>` operator)
 - **Knowledge base embedding** is a separate one-time step (`embed_kb.py`) — the server starts instantly without waiting
-- **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source
+- **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source, and must never invent provisions or thresholds; it flags "Further legal verification is required" when the knowledge base is inconclusive
+- **Risk ratings** — Critical / High / Medium / Low / Advisory; evidence is graded Level 1–4 (Strong Evidence to Unsupported)
 - **Lead capture** — when downloading the PDF report, email and phone are stored in the `leads` table for follow-up
 - **No user data stored from PDFs** — uploaded PDFs are processed in memory and discarded
 - **PDF download** — the report can be downloaded as a PDF using html2pdf.js (client-side generation)
