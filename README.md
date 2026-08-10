@@ -2,7 +2,7 @@
 
 An AI-powered tax return health check tool built for **Tax Support Hub** (https://taxsupporthub.com/).
 
-Users upload a PDF of their tax return and receive a **Tax Return Risk, Weakness & Preventive Compliance Review** (Sections A–F) — overall risk rating, risk counts, amounts reviewed/exposed, top 5 weaknesses, immediate actions, filing recommendation, 5 top areas of concern (each with 12 diagnostic fields), a detailed risk matrix, missing documents checklist, a 4-phase corrective action plan, and a client-friendly conclusion — plus PDF download and WhatsApp booking integration.
+Users upload a PDF of their tax return and receive a **Pakistan Individual Income Tax Return Risk Review** — a paragraph-form report of genuine potential areas of concern (each with a descriptive heading, a High/Medium/Low risk level, and a plain-language explanation with practical next steps), followed by an Overall Assessment — plus PDF download and WhatsApp booking integration.
 
 ---
 
@@ -12,8 +12,8 @@ Users upload a PDF of their tax return and receive a **Tax Return Risk, Weakness
 2. Text is extracted from the PDF using pdfplumber
 3. Knowledge chunks are embedded using **OpenAI** (`text-embedding-3-small`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
-5. OpenAI (`gpt-4o`) analyzes the return using **OpenAI Structured Outputs** (strict JSON schema, `temperature=0.0`) against your knowledge base only
-6. A professional report is returned with an overall risk rating (Critical/High/Medium/Low/Advisory), risk counts, top areas of concern, a risk matrix, and next steps
+5. OpenAI (`gpt-4o`) performs a face-of-return tax risk review using the master prompt (cross-checking the return of income, wealth statement, reconciliation, withholding, and all schedules together) against your knowledge base only (`temperature=0.0`)
+6. A professional paragraph-form report is returned — genuine observations only (5–10 maximum), each with a heading, a High/Medium/Low risk level and one plain-language paragraph, followed by an Overall Assessment
 7. The report can be downloaded as PDF (email/phone collected first) or shared via WhatsApp
 
 **No user data is stored — uploaded PDFs are processed in memory only.**
@@ -156,16 +156,16 @@ curl http://localhost:8000/api/kb-status
 ## Important Notes
 
 - **Embeddings** are generated via the OpenAI API (`text-embedding-3-small`, 1536 dims) — no local ML models, no heavy CPU/RAM usage
-- **AI analysis** uses OpenAI (`gpt-4o` by default, configurable via `OPENAI_MODEL`) with Structured Outputs (strict schema) at `temperature=0.0`
+- **AI analysis** uses OpenAI (`gpt-4o` by default, configurable via `OPENAI_MODEL`) at `temperature=0.0` and returns a plain-text paragraph-form report (no JSON schema)
 - **Vector search** uses pgvector with cosine similarity (`<=>` operator)
 - **Knowledge base embedding** is a separate one-time step (`embed_kb.py`) — the server starts instantly without waiting
 - **No hardcoded tax rules** — the AI only uses your ChatGPT exports as its knowledge source, and must never invent provisions or thresholds; it flags "Further legal verification is required" when the knowledge base is inconclusive
-- **Risk ratings** — Critical / High / Medium / Low / Advisory; evidence is graded Level 1–4 (Strong Evidence to Unsupported)
+- **Risk levels** — each observation is graded High / Medium / Low only
 - **Lead capture** — when downloading the PDF report, email and phone are stored in the `leads` table for follow-up
 - **No user data stored from PDFs** — uploaded PDFs are processed in memory and discarded
 - **PDF download** — the report can be downloaded as a PDF using html2pdf.js (client-side generation)
 - **WhatsApp booking** — floating action button + inline button link to WhatsApp deep-link for booking reviews
-- **Animated UI** — scanning animation with progress steps, health gauge, staggered area card animations
+- **Animated UI** — scanning animation with progress steps, staggered area card animations
 - **Rate limit handling** — retry logic with exponential backoff for both embedding and generation APIs
 - **If no relevant knowledge is found**, the system returns a manual-review response
 - **PDF requirement** — works with text-based PDFs only. Use OCR for scanned documents first.
