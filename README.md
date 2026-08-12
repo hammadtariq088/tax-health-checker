@@ -13,7 +13,7 @@ Users upload a PDF of their tax return and receive a **Pakistan Individual Incom
 3. Knowledge chunks are embedded using **OpenAI** (`text-embedding-3-small`) via a one-time script (`embed_kb.py`)
 4. Relevant chunks are retrieved from **pgvector** (PostgreSQL) using cosine similarity
 5. OpenAI (`gpt-4o`) performs a face-of-return tax risk review using the master prompt (cross-checking the return of income, wealth statement, reconciliation, withholding, and all schedules together) against your knowledge base only (`temperature=0.0`)
-6. A professional paragraph-form report is returned — genuine observations only (5–10 maximum), each with a heading, a High/Medium/Low risk level and one plain-language paragraph, followed by an Overall Assessment
+6. A professional paragraph-form report is returned — always a full area-by-area review. Each applicable area is its own section with a heading and a High/Medium/Low risk level: genuine concerns are flagged with their real risk level, and clean areas are reported as "confirmed consistent" (Risk Level: Low). The report always ends with an Overall Assessment, so output is consistent regardless of how clean the return is
 7. The report can be downloaded as PDF (email/phone collected first) or shared via WhatsApp
 
 **No user data is stored — uploaded PDFs are processed in memory only.**
