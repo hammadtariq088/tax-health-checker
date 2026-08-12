@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tax Health Checker | Tax Support Hub</title>
+    <title>
+      Tax Return Health Checker | TAX SUPPORT HUB (SMC) PRIVATE LIMITED
+    </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
@@ -472,79 +474,6 @@
         display: none;
       }
 
-      /* Key Area Cards */
-      .area-card {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-radius: 10px;
-        border-left: 4px solid;
-        background: var(--gray-light);
-        margin-bottom: 0.75rem;
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease;
-      }
-      .area-card:hover {
-        transform: translateX(4px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-      }
-      .area-card.green {
-        border-left-color: var(--success);
-      }
-      .area-card.yellow {
-        border-left-color: var(--warning);
-      }
-      .area-card.red {
-        border-left-color: var(--danger);
-        background: #fdf3f2;
-      }
-
-      .risk-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 100px;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        margin-left: 0.5rem;
-        vertical-align: middle;
-        white-space: nowrap;
-      }
-      .risk-badge.green {
-        background: #e6f4ea;
-        color: #1e7e34;
-      }
-      .risk-badge.yellow {
-        background: #fef7e0;
-        color: #b06000;
-      }
-      .risk-badge.red {
-        background: #fce8e6;
-        color: #c5221f;
-      }
-
-      .area-card .area-icon {
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        margin-top: 2px;
-      }
-      .area-card .area-content h4 {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--secondary);
-        margin: 0 0 0.2rem;
-      }
-      .area-card .area-content p {
-        font-size: 0.9rem;
-        color: var(--text-light);
-        margin: 0;
-        line-height: 1.6;
-      }
-
       /* CTA Section */
       .next-step-cta {
         background: linear-gradient(
@@ -772,13 +701,281 @@
           height: 48px;
         }
       }
+
+      /* ---- Sections A-F report ---- */
+      .report-section {
+        margin-top: 1.5rem;
+      }
+      .report-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 0 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid var(--primary-light);
+      }
+      .clean-return {
+        background: #e6f4ea;
+        border: 1px solid #c6e5cd;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #1e7e34;
+      }
+      .clean-return p {
+        margin: 0;
+      }
+      .risk-chip {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 100px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        vertical-align: middle;
+        margin-bottom: 2px;
+      }
+      .risk-chip.critical {
+        background: #fce8e6;
+        color: #c5221f;
+      }
+      .risk-chip.high {
+        background: #fef0e0;
+        color: #b06000;
+      }
+      .risk-chip.medium {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .risk-chip.low {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .risk-chip.advisory {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .rating-badge {
+        display: inline-block;
+        padding: 6px 20px;
+        border-radius: 100px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .rating-badge.critical {
+        background: #fce8e6;
+        color: #c5221f;
+      }
+      .rating-badge.high {
+        background: #fef0e0;
+        color: #b06000;
+      }
+      .rating-badge.medium {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .rating-badge.low {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .rating-badge.advisory {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin: 1rem 0;
+      }
+      .stat-card {
+        background: var(--gray-light);
+        border: 1px solid var(--gray-border);
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+      }
+      .stat-card .label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--text-light);
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .stat-card .value {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        word-break: break-word;
+      }
+      .list-plain {
+        margin: 0;
+        padding: 0 0 0 1.1rem;
+      }
+      .list-plain li {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        line-height: 1.55;
+        margin-bottom: 0.4rem;
+      }
+      .filing-callout {
+        background: var(--primary-light);
+        border-left: 4px solid var(--primary);
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        margin: 0.75rem 0;
+      }
+      .filing-callout .label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--primary);
+        margin-bottom: 0.25rem;
+      }
+      .filing-callout p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--secondary);
+        line-height: 1.5;
+      }
+      .area-detail {
+        border: 1px solid var(--gray-border);
+        border-left: 4px solid var(--gray-border);
+        border-radius: 10px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 0.9rem;
+        background: var(--gray-light);
+      }
+      .area-detail.critical {
+        border-left-color: #c5221f;
+        background: #fdf3f2;
+      }
+      .area-detail.high {
+        border-left-color: #b06000;
+      }
+      .area-detail.medium {
+        border-left-color: #fbbc04;
+      }
+      .area-detail.low {
+        border-left-color: #34a853;
+      }
+      .area-detail.advisory {
+        border-left-color: #1a73e8;
+      }
+      .area-detail .area-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.4rem;
+      }
+      .area-detail .area-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0;
+      }
+      .area-detail table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .area-detail td {
+        padding: 0.35rem 0;
+        font-size: 0.85rem;
+        vertical-align: top;
+      }
+      .area-detail td.k {
+        width: 38%;
+        color: var(--text-light);
+        font-weight: 600;
+      }
+      .area-detail td.v {
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .area-detail tr + tr td {
+        border-top: 1px solid #e6eaf0;
+      }
+      .matrix-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--gray-border);
+        border-radius: 10px;
+      }
+      .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+        min-width: 920px;
+      }
+      .matrix-table th {
+        background: var(--secondary);
+        color: #fff;
+        text-align: left;
+        padding: 0.5rem 0.6rem;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .matrix-table td {
+        padding: 0.5rem 0.6rem;
+        border-top: 1px solid var(--gray-border);
+        vertical-align: top;
+        color: var(--text);
+        line-height: 1.45;
+      }
+      .matrix-table tr:nth-child(even) td {
+        background: #fafbfc;
+      }
+      .plan-block {
+        margin-bottom: 1rem;
+      }
+      .plan-block h5 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 0 0.35rem;
+      }
+      .plan-block .phase-label {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 2px 8px;
+        border-radius: 100px;
+        margin-right: 0.4rem;
+      }
+      .phase-label.pf {
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .phase-label.af {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .phase-label.on {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .phase-label.fu {
+        background: #f3e8fd;
+        color: #8430ce;
+      }
     </style>
   </head>
   <body>
     <!-- Brand Header -->
     <div class="brand-header">
-      <h1><span class="logo-text">Tax Health Checker</span></h1>
-      <div class="subtitle">Powered by Tax Support Hub</div>
+      <h1><span class="logo-text">Tax Return Health Checker</span></h1>
+      <div class="subtitle">
+        Powered by TAX SUPPORT HUB (SMC) PRIVATE LIMITED
+      </div>
     </div>
 
     <div style="max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem">
@@ -792,7 +989,7 @@
             margin: 0 0 0.25rem;
           "
         >
-          Check Your Tax Return Health
+          How Healthy Is Your Tax Return?
         </h2>
         <p
           style="
@@ -802,8 +999,9 @@
             line-height: 1.5;
           "
         >
-          Upload your tax return PDF and our AI will analyze it against our
-          knowledge base.
+          Upload your return (PDF) and our AI will scan it against our Pakistan
+          tax knowledge base to surface risks, and compliance gaps so you can
+          fix issues before the tax authority does.
         </p>
         <div
           style="
@@ -813,7 +1011,7 @@
             margin-bottom: 0.5rem;
           "
         >
-          <span id="kbStatus">Checking knowledge base...</span>
+          <span id="kbStatus">Checking Knowledge Base...</span>
         </div>
 
         <div class="drop-zone" id="dropZone">
@@ -1010,42 +1208,10 @@
               margin: 0;
             "
           >
-            Your Tax Health Report
+            Your Tax Return Risk Review
           </h2>
         </div>
-        <p
-          id="overallSummary"
-          style="
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin: 0 0 1.5rem;
-            line-height: 1.6;
-            text-align: left;
-          "
-        ></p>
-
-        <h3
-          style="
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--secondary);
-            margin: 0 0 0.25rem;
-          "
-        >
-          Areas of Concern
-        </h3>
-        <p
-          style="
-            color: var(--text-light);
-            font-size: 0.8rem;
-            margin: 0 0 0.75rem;
-            line-height: 1.5;
-          "
-        >
-          These are the areas the tax authority may question now or in the
-          future.
-        </p>
-        <div id="concernsList" class="anim-fade-in-up-stagger"></div>
+        <div id="reportSections" class="anim-fade-in-up"></div>
 
         <div class="next-step-cta" id="nextStepCta">
           <h3>Get a Free One-to-One Review</h3>
@@ -1195,8 +1361,7 @@
         const errorCard = document.getElementById("errorCard");
         const errorMessage = document.getElementById("errorMessage");
         const retryBtn = document.getElementById("retryBtn");
-        const overallSummary = document.getElementById("overallSummary");
-        const concernsList = document.getElementById("concernsList");
+        const reportSections = document.getElementById("reportSections");
         const newCheckBtn = document.getElementById("newCheckBtn");
         const scanTitle = document.getElementById("scanTitle");
         const scanSubtitle = document.getElementById("scanSubtitle");
@@ -1340,115 +1505,133 @@
           }
         }
 
+        // ---- Report parsing ----
+        function parseReport(markdown) {
+          var text = String(markdown || "").trim();
+          var observations = [];
+          var assessment = "";
+          var intro = "";
+          var sections = ("\n" + text).split(/\r?\n###\s+/);
+          for (var i = 0; i < sections.length; i++) {
+            var sec = sections[i];
+            if (!sec.trim()) continue;
+            var lines = sec.split(/\r?\n/);
+            var heading = lines.shift().trim();
+            var body = lines.join("\n").trim();
+            if (i === 0) {
+              intro = sec.trim();
+              continue;
+            }
+            if (/^overall assessment$/i.test(heading)) {
+              assessment = body;
+              continue;
+            }
+            var risk = "Medium";
+            var riskMatch = body.match(
+              /\*\*\s*[Rr]isk\s*[Ll]evel\s*:\s*([A-Za-z]+)/,
+            );
+            if (riskMatch) {
+              var r = riskMatch[1].toLowerCase();
+              if (r.indexOf("high") !== -1) risk = "High";
+              else if (r.indexOf("med") !== -1) risk = "Medium";
+              else if (r.indexOf("low") !== -1) risk = "Low";
+            }
+            body = body
+              .replace(/\*\*\s*[Rr]isk\s*[Ll]evel\s*:\s*[A-Za-z]+/i, "")
+              .replace(/^\s*\*\*\s*/, "")
+              .replace(/\s*\*\*\s*$/, "")
+              .trim();
+            if (!body) continue;
+            observations.push({ heading: heading, risk: risk, text: body });
+          }
+          return {
+            intro: intro,
+            observations: observations,
+            assessment: assessment,
+          };
+        }
+
         // ---- PDF Generation ----
         function buildPDFContent(data) {
-          var health = data.overall_health || "yellow";
-          console.log("health", health);
-          var statusLabel =
-            health === "green"
-              ? "Good Health"
-              : health === "red"
-                ? "Attention Needed"
-                : "Needs Review";
+          var parsed = parseReport(data.report);
+          var obs = parsed.observations || [];
+          var assessment = parsed.assessment || "";
+          var intro = parsed.intro || "";
 
-          var areasHtml = "";
-          (data.key_areas || []).forEach(function (item) {
-            var s = item.status || "yellow";
-            var iconColor =
-              s === "green" ? "#34a853" : s === "red" ? "#ea4335" : "#fbbc04";
-            var iconPath =
-              s === "green"
-                ? '<circle cx="12" cy="12" r="10" fill="' +
-                  iconColor +
-                  '"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-                : '<path d="M12 2L2 22h20L12 2z" fill="' +
-                  iconColor +
-                  '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
-            var riskLevel =
-              item.risk_level ||
-              (s === "red"
-                ? "High Attention Required"
-                : s === "green"
-                  ? "No Concern Noted"
-                  : "Documentation Recommended");
-            var badgeBg =
-              s === "green" ? "#e6f4ea" : s === "red" ? "#fce8e6" : "#fef7e0";
-            var badgeFg =
-              s === "green" ? "#1e7e34" : s === "red" ? "#c5221f" : "#b06000";
-            var badgeHtml =
-              s === "green"
-                ? ""
-                : '<span style="display:inline-block;padding:1px 8px;border-radius:100px;font-size:9px;font-weight:700;background:' +
-                  badgeBg +
-                  ";color:" +
-                  badgeFg +
-                  ';margin-left:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:0.02em;">' +
-                  escapeHtml(riskLevel) +
-                  "</span>";
-            var rowBg = s === "red" ? "background:#fdf3f2;" : "";
-            areasHtml +=
-              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px; ' +
-              rowBg +
-              '">' +
-              '<svg width="20" height="20" viewBox="0 0 24 24" style="margin-top:2px;">' +
-              iconPath +
-              "</svg></td>" +
-              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; ' +
-              rowBg +
-              '">' +
-              '<div style="font-weight:600;font-size:13px;color:#213B55;margin-bottom:2px;">' +
-              escapeHtml(item.area || "") +
-              badgeHtml +
-              "</div>" +
-              '<div style="font-size:12px;color:#666;line-height:1.4;">' +
-              escapeHtml(item.explanation || "") +
-              "</div></td></tr>";
-          });
+          var ratingBg = {
+            high: "#fef0e0",
+            medium: "#fef7e0",
+            low: "#e6f4ea",
+          };
+          var ratingFg = {
+            high: "#b06000",
+            medium: "#b06000",
+            low: "#1e7e34",
+          };
 
-          var summary =
-            data.overall_summary || "Your tax return has been reviewed.";
-          var nextStep =
-            data.next_step ||
-            "We recommend scheduling a free review with Tax Support Hub.";
+          function chip(label, key) {
+            var k = String(key || label || "medium").toLowerCase();
+            if (k !== "high" && k !== "medium" && k !== "low") k = "medium";
+            return (
+              '<span style="display:inline-block;padding:2px 10px;border-radius:100px;font-size:10px;font-weight:700;background:' +
+              (ratingBg[k] || "#fef7e0") +
+              ";color:" +
+              (ratingFg[k] || "#b06000") +
+              ';margin-left:6px;text-transform:uppercase;letter-spacing:0.02em;">' +
+              escapeHtml(label) +
+              "</span>"
+            );
+          }
+
+          var obsHtml = "";
+          if (obs.length) {
+            obs.forEach(function (o) {
+              var k = String(o.risk || "medium").toLowerCase();
+              obsHtml +=
+                '<div style="border:1px solid #e0e6ed;border-left:4px solid ' +
+                (ratingFg[k] || "#b06000") +
+                ';border-radius:8px;padding:12px 14px;margin-bottom:12px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                '<div style="font-weight:700;font-size:13px;color:#213B55;">' +
+                escapeHtml(o.heading || "") +
+                "</div>" +
+                chip(o.risk || "Medium", k) +
+                "</div>" +
+                '<p style="font-size:12px;line-height:1.6;color:#333;margin:0;text-align:justify;">' +
+                escapeHtml(o.text || "") +
+                "</p></div>";
+            });
+          } else if (intro) {
+            obsHtml +=
+              '<div style="background:#e6f4ea;border:1px solid #c6e5cd;border-radius:8px;padding:12px 14px;margin-bottom:12px;">' +
+              '<p style="font-size:12px;line-height:1.6;color:#1e7e34;margin:0;">' +
+              escapeHtml(intro) +
+              "</p></div>";
+          }
+
+          var assessHtml = assessment
+            ? '<div style="background:#e8f4fd;border-left:4px solid #0078C8;border-radius:8px;padding:12px 14px;margin-top:4px;">' +
+              '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:#0078C8;margin-bottom:3px;">Overall Assessment</div>' +
+              '<p style="font-size:12px;color:#213B55;margin:0;line-height:1.6;">' +
+              escapeHtml(assessment) +
+              "</p></div>"
+            : "";
 
           return [
             '<div style="padding:40px 36px;font-family:Inter, sans-serif;color:#333;max-width:600px;margin:0 auto;">',
-            '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:24px;">',
+            '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:20px;">',
             '<h1 style="font-size:22px;font-weight:800;color:#0078C8;margin:0;">Tax Health Checker</h1>',
-            '<p style="font-size:12px;color:#666;margin:4px 0 0;">Powered by Tax Support Hub</p>',
+            '<p style="font-size:12px;color:#666;margin:4px 0 0;">Pakistan Individual Income Tax Return Risk Review</p>',
             "</div>",
-            '<div style="text-align:center;margin-bottom:20px;">',
-            '<span style="display:inline-block;padding:4px 16px;border-radius:100px;font-weight:600;font-size:13px;background:' +
-              (health === "green"
-                ? "#e6f4ea"
-                : health === "red"
-                  ? "#fce8e6"
-                  : "#fef7e0") +
-              ";color:" +
-              (health === "green"
-                ? "#1e7e34"
-                : health === "red"
-                  ? "#c5221f"
-                  : "#b06000") +
-              ';"">' +
-              statusLabel +
-              "</span>",
-            '<p style="font-size:13px;color:#666;line-height:1.5;margin-top:10px;">' +
-              escapeHtml(summary) +
-              "</p>",
+            '<p style="font-size:11px;color:#888;margin:0 0 14px;line-height:1.5;">This report identifies genuine potential areas of concern that may reasonably attract an FBR query, verification or documentary challenge. It is advisory in nature.</p>',
+            obsHtml,
+            assessHtml,
+            '<div style="background:#0078C8;color:white;border-radius:8px;padding:16px;text-align:center;margin-top:22px;">',
+            '<p style="font-size:13px;margin:0;line-height:1.5;">We recommend scheduling a free one-to-one review with a Tax Support Hub professional to confirm your position.</p>',
             "</div>",
-            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 4px;">Areas of Concern</h2>',
-            '<p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 10px;">These are the areas the tax authority may question now or in the future.</p>',
-            '<table style="width:100%;border-collapse:collapse;">' +
-              areasHtml +
-              "</table>",
-            '<div style="background:#0078C8;color:white;border-radius:8px;padding:16px;text-align:center;margin-top:20px;">',
-            '<p style="font-size:13px;margin:0;line-height:1.5;">' +
-              escapeHtml(nextStep) +
-              "</p>",
-            "</div>",
-            '<div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #d0d7de;">',
-            '<p style="font-size:10px;color:#999;margin:0;">Generated on ' +
+            '<div style="text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid #d0d7de;">',
+            '<p style="font-size:9px;color:#999;margin:0;line-height:1.5;">Tax Support Hub &middot; taxsupporthub.com &middot; This report is advisory in nature and does not constitute a legal opinion. Further legal verification may be required.</p>',
+            '<p style="font-size:10px;color:#999;margin:6px 0 0;">Generated on ' +
               new Date().toLocaleDateString("en-AU", {
                 year: "numeric",
                 month: "long",
@@ -1458,42 +1641,6 @@
             "</div>",
             "</div>",
           ].join("");
-        }
-
-        function triggerPDFDownload(data) {
-          var el = document.createElement("div");
-          el.style.position = "fixed";
-          el.style.left = "0";
-          el.style.top = "0";
-          el.style.zIndex = "-1";
-          el.style.width = "600px";
-          el.style.backgroundColor = "#ffffff";
-          el.setAttribute("aria-hidden", "true");
-          el.innerHTML = buildPDFContent(data);
-          document.body.appendChild(el);
-
-          var opt = {
-            margin: 0.4,
-            filename: "tax-health-report.pdf",
-            image: { type: "jpeg", quality: 0.95 },
-            html2canvas: {
-              scale: 2,
-              letterRendering: true,
-              useCORS: true,
-              logging: false,
-            },
-            jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-          };
-
-          setTimeout(function () {
-            html2pdf()
-              .set(opt)
-              .from(el)
-              .save()
-              .then(function () {
-                if (el.parentNode) el.parentNode.removeChild(el);
-              });
-          }, 100);
         }
 
         // ---- Lead modal ----
@@ -1612,69 +1759,65 @@
         }
 
         // ---- Display Report ----
+        function ratingSuffix(r) {
+          return String(r || "").toLowerCase();
+        }
+
         function displayReport(data) {
           showView(reportCard);
 
-          overallSummary.textContent =
-            data.overall_summary || "Your tax return has been reviewed.";
+          var parsed = parseReport(data.report);
+          var obs = parsed.observations || [];
+          var assessment = parsed.assessment || "";
+          var intro = parsed.intro || "";
 
-          // Key areas
-          concernsList.innerHTML = "";
-          var areas = data.key_areas || [];
-          areas.forEach(function (item) {
-            var s = item.status || "yellow";
-            var iconColor =
-              s === "green" ? "#34a853" : s === "red" ? "#ea4335" : "#fbbc04";
-            var iconPath =
-              s === "green"
-                ? '<circle cx="12" cy="12" r="10" fill="' +
-                  iconColor +
-                  '"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-                : '<path d="M12 2L2 22h20L12 2z" fill="' +
-                  iconColor +
-                  '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
-            var riskLevel =
-              item.risk_level ||
-              (s === "red"
-                ? "High Attention Required"
-                : s === "green"
-                  ? "No Concern Noted"
-                  : "Documentation Recommended");
-            var badgeHtml =
-              s === "green"
-                ? ""
-                : '<span class="risk-badge ' +
-                  s +
-                  '">' +
-                  escapeHtml(riskLevel) +
-                  "</span>";
-            var div = document.createElement("div");
-            div.className = "area-card " + s;
-            div.innerHTML =
-              '<div class="area-icon"><svg width="24" height="24" viewBox="0 0 24 24">' +
-              iconPath +
-              "</svg></div>" +
-              '<div class="area-content"><h4>' +
-              escapeHtml(item.area || "Area") +
-              badgeHtml +
-              "</h4><p>" +
-              escapeHtml(item.explanation || "") +
+          var riskChip = {
+            high: '<span class="risk-chip high">High</span>',
+            medium: '<span class="risk-chip medium">Medium</span>',
+            low: '<span class="risk-chip low">Low</span>',
+          };
+
+          var sectionsHtml = "";
+
+          if (obs.length) {
+            obs.forEach(function (o) {
+              var k = String(o.risk || "medium").toLowerCase();
+              if (k !== "high" && k !== "medium" && k !== "low") k = "medium";
+              sectionsHtml +=
+                '<div class="area-detail ' +
+                k +
+                '">' +
+                '<div class="area-head"><h4 class="area-name">' +
+                escapeHtml(o.heading || "") +
+                "</h4>" +
+                (riskChip[k] || riskChip.medium) +
+                "</div>" +
+                '<p style="margin:0;line-height:1.65;color:var(--text);font-size:0.9rem;">' +
+                escapeHtml(o.text || "") +
+                "</p></div>";
+            });
+          } else if (intro) {
+            sectionsHtml +=
+              '<div class="clean-return"><p>' +
+              escapeHtml(intro) +
               "</p></div>";
-            concernsList.appendChild(div);
-          });
-
-          // Re-trigger stagger animation
-          concernsList.classList.remove("anim-fade-in-up-stagger");
-          void concernsList.offsetWidth;
-          concernsList.classList.add("anim-fade-in-up-stagger");
-
-          // CTA text
-          if (data.next_step) {
-            ctaText.textContent = data.next_step;
           }
 
-          // Update WhatsApp link with the tax return info (optional: could include a reference)
-          // Scroll to top of report
+          if (assessment) {
+            sectionsHtml +=
+              '<div class="report-section"><h3 class="report-section-title">Overall Assessment</h3>' +
+              '<p style="color:var(--text-light);font-size:0.9rem;line-height:1.6;margin:0;">' +
+              escapeHtml(assessment) +
+              "</p></div>";
+          }
+
+          if (!sectionsHtml) {
+            sectionsHtml +=
+              '<p style="color:var(--text-light);font-size:0.9rem;line-height:1.6;margin:0;">Based on the information available in the return, no significant inconsistency or potential tax risk has been identified from the face of the return.</p>';
+          }
+
+          reportSections.innerHTML = sectionsHtml;
+
           reportCard.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
@@ -1742,14 +1885,14 @@
           .then(function (s) {
             var el = document.getElementById("kbStatus");
             if (s.chunks > 0) {
-              el.textContent = "Knowledge base loaded";
+              el.textContent = "Knowledge Base Loaded...";
             } else {
-              el.textContent = "Knowledge base empty";
+              el.textContent = "Knowledge Base Empty";
             }
           })
           .catch(function () {
             document.getElementById("kbStatus").textContent =
-              "Knowledge base unavailable";
+              "Knowledge Base Unavailable";
           });
 
         // ---- Init ----

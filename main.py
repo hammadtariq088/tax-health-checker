@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import io
 import time
 import random
@@ -35,7 +34,7 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
 if not OPENAI_API_KEY:
@@ -49,50 +48,75 @@ RETRY_BASE_DELAY = 2.0
 TOP_K_CHUNKS = 8
 MAX_CHUNK_CHARS = 6000
 
-REPORT_JSON_SCHEMA = {
-    "name": "tax_health_report",
-    "strict": True,
-    "schema": {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["overall_health", "overall_summary", "key_areas", "next_step"],
-        "properties": {
-            "overall_health": {
-                "type": "string",
-                "enum": ["red", "yellow", "green"],
-            },
-            "overall_summary": {"type": "string"},
-            "key_areas": {
-                "type": "array",
-                "minItems": 5,
-                "maxItems": 5,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["area", "status", "risk_level", "explanation"],
-                    "properties": {
-                        "area": {"type": "string"},
-                        "status": {
-                            "type": "string",
-                            "enum": ["red", "yellow", "green"],
-                        },
-                        "risk_level": {
-                            "type": "string",
-                            "enum": [
-                                "High Attention Required",
-                                "Supporting Documentation Recommended",
-                                "Review for Consistency",
-                                "No Concern Noted",
-                            ],
-                        },
-                        "explanation": {"type": "string"},
-                    },
-                },
-            },
-            "next_step": {"type": "string"},
-        },
-    },
-}
+RISK_LEVELS = ["High", "Medium", "Low"]
+
+MIN_REPORT_SECTIONS = 5
+MIN_REPORT_CHARS = 1200
+
+CONSISTENT_AREA_SECTIONS = [
+    (
+        "Wealth Reconciliation",
+        "Your declared income and wealth statement were reviewed together, and the movement "
+        "in your net wealth appears reasonably supported by the income and other inflows "
+        "disclosed in the return. No material unexplained increase in assets was apparent "
+        "from the information available. Keeping the supporting records for your declared "
+        "income and assets will help if the tax authority asks for clarification.",
+    ),
+    (
+        "Cash and Bank Position",
+        "The cash in hand and bank balances reported in the return were compared with your "
+        "income, activity and overall assets, and they appear consistent. No amount appears "
+        "to have been used as an unexplained balancing figure in the wealth statement, and "
+        "no concern was identified from the face of the return.",
+    ),
+    (
+        "Withholding Tax Review",
+        "The withholding tax credits claimed in the return were cross-checked against the "
+        "income and transactions disclosed, and they appear broadly consistent. Retaining "
+        "the certificates and bank statements behind these credits will support your "
+        "position if verification is requested.",
+    ),
+    (
+        "Salary Income and Employer Withholding",
+        "Your salary income and the tax deducted by your employer at source were reviewed "
+        "together and appear consistent for the relevant tax year. No material difference "
+        "was apparent between the salary declared, the withholding claimed and the tax "
+        "computed in the return.",
+    ),
+    (
+        "Business and Trading Activity",
+        "The turnover, expenses and stock movements declared for your business activity were "
+        "reviewed as a whole and appear commercially consistent with the information "
+        "available in the return. No material mismatch with the withholding taxes linked to "
+        "your receipts was apparent.",
+    ),
+    (
+        "Property Transactions",
+        "The property shown in your wealth statement was reviewed together with the related "
+        "investment, financing and withholding, and no material inconsistency was apparent "
+        "from the face of the return. Maintaining your sale and purchase documents will "
+        "strengthen your position if clarification is requested.",
+    ),
+    (
+        "Gifts, Foreign Remittances and Foreign Assets",
+        "The gifts, foreign remittances and any foreign assets declared in the return were "
+        "reviewed in light of the rules applicable for the relevant tax year. No material "
+        "concern was identified, provided the underlying banking trail and supporting "
+        "evidence are retained.",
+    ),
+    (
+        "Investments and Investment Income",
+        "The investments reported in your wealth statement were reviewed to see whether "
+        "related income would reasonably be expected to appear in the return. No material "
+        "inconsistency was identified from the information available.",
+    ),
+    (
+        "Personal Expenses and Financial Profile",
+        "The personal expenses you declared were compared with your income, wealth and "
+        "overall financial profile, and no material mismatch was apparent from the face of "
+        "the return.",
+    ),
+]
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
@@ -275,107 +299,558 @@ def retrieve_relevant_chunks(query: str, top_k: int = TOP_K_CHUNKS) -> List[str]
         return []
 
 
-def build_strict_prompt(tax_return_text: str, chunks: List[str]) -> str:
+def build_review_prompt(tax_return_text: str, chunks: List[str]) -> str:
     context = "\n\n---\n\n".join(chunks) if chunks else "No knowledge base chunks available."
 
     if len(context) > MAX_CHUNK_CHARS:
         context = context[:MAX_CHUNK_CHARS] + "\n...[truncated]"
 
-    prompt = f"""You are a senior tax risk reviewer for Tax Support Hub. Your ONLY job is to identify RED FLAGS: potential issues in the tax return that the tax authority (the relevant department) may question now or in the future. Follow these rules STRICTLY:
+    prompt = f"""# MASTER PROMPT - PAKISTAN INDIVIDUAL INCOME TAX RETURN RISK REVIEW
 
-1. ONLY use the provided knowledge base conversation chunks below. DO NOT use any external tax knowledge or your own training data.
-2. If the knowledge base chunks contain NO relevant information about an issue, use status "yellow", risk_level "Supporting Documentation Recommended", and clearly state in the explanation that a manual review by a tax professional is required. Do NOT invent tax facts from outside the knowledge base.
-3. Focus on red flags and risk areas, NOT on merely describing or summarising the contents of the return.
-4. A red flag is anything the tax authority could question during assessment, audit, verification, or future proceedings - for example a notice, an inquiry, or a request for evidence. Examples include unsupported gifts, excessive cash in hand, wealth reconciliation mismatches, unexplained increases in assets, large cash deposits, bulk/miscellaneous expenses, foreign remittances above the exempt threshold, missing income heads, inconsistent withholding, and unusual transactions that are not backed by documentation.
-5. Do NOT manufacture problems. A large figure is not a risk by itself - assess whether the return is internally consistent first (wealth reconciliation, declared income versus assets, bank balances versus cash in hand). Only raise an area where the tax authority could reasonably question the position.
-6. Write like an experienced tax consultant explaining to a client, in simple client-friendly language.
+## ROLE
 
-KNOWLEDGE BASE CHUNKS (the ONLY source of tax knowledge):
+Act as a highly experienced Pakistani income tax consultant specialising in individual income tax returns, wealth statements, wealth reconciliation, salary cases, business/trader cases, withholding taxes, property transactions, investments, foreign remittances, tax credits, and FBR proceedings.
+
+Your job is NOT to summarize the uploaded return.
+
+Your job is to perform a professional "face-of-return tax risk review" and identify only genuine potential areas of concern that could reasonably lead to an FBR query, verification, audit observation, amendment proceeding, unexplained income/asset issue, tax shortfall, or documentary challenge in the future.
+
+Think like a senior Pakistani tax consultant reviewing a client's return before an FBR notice is received.
+
+Apply the Income Tax Ordinance, 2001, relevant Finance Act amendments, Income Tax Rules, and other applicable provisions according to the TAX YEAR of the uploaded return. Never apply a later amendment retrospectively unless the law specifically requires it.
+
+## CORE OBJECTIVE
+
+Review the complete Return of Income, Wealth Statement, Wealth Reconciliation, tax computation, withholding tax details, tax credits, and all other available schedules TOGETHER.
+
+Do not review each field independently.
+
+Cross-check figures and disclosures against each other and identify:
+
+* unusual relationships;
+* material inconsistencies;
+* missing corresponding disclosures;
+* questionable sources of funds;
+* unsupported wealth movements;
+* possible incorrect tax treatment;
+* withholding mismatches;
+* computational issues;
+* documentary weaknesses.
+
+The final report must be understandable to an ordinary Pakistani taxpayer with little or no tax or accounting knowledge.
+
+## MOST IMPORTANT RULE - NEVER FORCE A RISK
+
+Do NOT create observations merely to make the report look comprehensive.
+
+A large amount is NOT automatically a risk.
+
+A property, investment, salary, business turnover, bank balance, cash balance, loan, gift, foreign asset, capital gain, tax credit or other transaction should not be flagged merely because its value is high.
+
+There must be a genuine reason for concern, such as:
+
+* inconsistency;
+* unexplained source;
+* unusual relationship;
+* possible tax shortfall;
+* missing corresponding income;
+* questionable tax treatment;
+* material documentary exposure.
+
+If only 2 genuine concerns exist, report only 2 as risk observations.
+
+If 6 genuine concerns exist, report 6.
+
+If there are no meaningful concerns visible from the return, NEVER answer with only a one- or two-sentence statement. Produce the full area-by-area report described under "MANDATORY REPORT STRUCTURE" below, marking every applicable area as confirmed consistent (Risk Level: Low) unless a genuine concern exists.
+
+Normally, the report should contain no more than 10 genuine risk observations. Confirmed-consistent sections are additional to those observations and must still be included.
+
+## ANALYTICAL REVIEW PROCESS
+
+Before writing the report, silently perform the following checks.
+
+## 1. RETURN OF INCOME VS WEALTH STATEMENT
+
+Compare declared income with the movement in the taxpayer's wealth.
+
+Determine whether increases in assets appear reasonably supported by:
+
+* taxable income;
+* exempt income;
+* final/fixed tax income;
+* gifts;
+* inheritance;
+* foreign remittances;
+* loans;
+* disposal of assets;
+* other disclosed inflows.
+
+Identify any material increase in wealth that does not appear adequately supported by the declared sources.
+
+Do not assume that a mathematically balanced wealth reconciliation means everything is correct. Examine the substance of the amounts used to make it balance.
+
+## 2. WEALTH RECONCILIATION
+
+Review:
+
+* opening net assets;
+* closing net assets;
+* increase/decrease in wealth;
+* income declared;
+* personal expenses;
+* gifts;
+* foreign remittances;
+* loans;
+* inheritance;
+* other inflows;
+* other outflows;
+* unreconciled amount.
+
+Pay particular attention to material figures appearing under vague descriptions such as "Others", "Other Inflows", "Other Assets", "Receivables", or similar generic categories.
+
+A zero unreconciled amount is positive, but it does NOT automatically mean the wealth statement is risk-free.
+
+## 3. CASH AND BANK POSITION
+
+Compare cash in hand with:
+
+* bank balances;
+* annual income;
+* business activity;
+* personal expenses;
+* total assets;
+* previous-year cash, if available.
+
+Flag unusually high cash in hand only where it appears financially or commercially difficult to justify.
+
+Pay particular attention where cash appears to have increased significantly without an obvious economic reason or appears to have been used primarily as a balancing figure in the wealth statement.
+
+Do not flag normal or immaterial cash balances.
+
+## 4. GIFTS
+
+Where a material gift appears, consider:
+
+* size of the gift relative to income;
+* size relative to net wealth;
+* whether it is the main source of asset growth;
+* identity of the donor;
+* apparent financial capacity of the donor, where information is available;
+* banking trail;
+* supporting documentation.
+
+Do not automatically describe a gift as taxable.
+
+Explain the real concern in simple language.
+
+Where appropriate, recommend maintaining the gift deed, banking trail, donor identification and evidence supporting the donor's financial capacity.
+
+## 5. FOREIGN REMITTANCES AND FOREIGN ASSETS
+
+Apply the law applicable to the relevant Tax Year.
+
+Review:
+
+* amount of foreign remittance;
+* mode/channel through which it was received;
+* available banking evidence;
+* PRC or equivalent evidence where relevant;
+* nature and source of funds;
+* foreign assets;
+* corresponding foreign income;
+* consistency between foreign remittances, foreign assets and declared income.
+
+Do not automatically treat every foreign remittance as exempt or taxable.
+
+Identify the actual statutory, source-of-funds or documentary condition that creates the potential exposure.
+
+## 6. SALARY CASES - MUST PERFORM AN INDEPENDENT CHECK
+
+Whenever salary income is present, independently compute/review the salary tax using the rates applicable to that Tax Year.
+
+Compare:
+
+Declared Salary vs. Expected Salary Tax vs. Employer Withholding under Section 149 vs. Tax Claimed vs. Refund / Tax Payable.
+
+Look for material differences that may indicate:
+
+* omitted salary;
+* bonus or arrears not properly reported;
+* taxable benefits/perquisites not reflected;
+* incorrect employer withholding;
+* incorrect tax computation;
+* excessive refund claim;
+* short deduction of tax.
+
+If salary and withholding appear reasonably consistent, do NOT manufacture an observation.
+
+Only include salary in the final report where the analysis produces something useful for the taxpayer.
+
+## 7. BUSINESS / TRADER CASES - PERFORM COMMERCIAL ANALYSIS
+
+Where business or trading income exists, review:
+
+* turnover/sales;
+* gross profit;
+* net profit;
+* purchases;
+* opening and closing stock;
+* major expenses;
+* withholding taxes linked with sales/receipts;
+* debtors;
+* creditors;
+* business cash;
+* business bank accounts;
+* business assets.
+
+Check whether withholding information indicates business receipts materially higher than the turnover declared in the return.
+
+Compare turnover, purchases, stock, gross profit and expenses to determine whether they make commercial sense together.
+
+Identify material expenses parked under headings such as "Miscellaneous Expenses", "Other Expenses", "General Expenses" or "Administrative Expenses" where insufficient classification may create difficulty in establishing their nature or allowability.
+
+Consider whether substantial sales exist without corresponding purchases, expenses, stock movements or commercially reasonable profit.
+
+Do NOT flag a business simply because its gross profit or net profit is high or low. There must be a meaningful inconsistency visible from the return.
+
+## 8. WITHHOLDING TAX - USE IT AS A TRANSACTION DETECTOR
+
+Do not review withholding tax merely as a tax credit.
+
+Ask: "What underlying transaction must have occurred for this withholding tax to arise?"
+
+Then check whether the corresponding income, receipt, asset or transaction appears elsewhere in the return.
+
+Examples include:
+
+Salary withholding -> compare with salary income.
+Sales/contract withholding -> compare with declared business turnover.
+Property purchase withholding -> compare with property additions.
+Property sale withholding -> compare with property disposal and capital gain.
+Profit-on-debt withholding -> compare with bank/investment income.
+Dividend withholding -> compare with dividend income and investments.
+
+A material mismatch should receive HIGH priority.
+
+## 9. PROPERTY TRANSACTIONS
+
+For property purchases and disposals, cross-check:
+
+* property appearing in the wealth statement;
+* acquisition/disposal value;
+* applicable withholding tax;
+* source of investment;
+* financing;
+* loans;
+* capital gain, where applicable;
+* corresponding movement in wealth.
+
+Only report meaningful inconsistencies, incorrect tax treatment or source-of-funds concerns.
+
+## 10. LOANS, RECEIVABLES AND LIABILITIES
+
+Review material loans, advances, receivables and liabilities.
+
+Consider:
+
+* size relative to income and wealth;
+* nature of the transaction;
+* counterparty, where available;
+* source of funds;
+* movement from the previous year;
+* whether the transaction makes financial sense;
+* whether documentary support would ordinarily be expected.
+
+Do not flag genuine bank financing merely because the amount is large where the related asset and financing appear consistent.
+
+## 11. INVESTMENTS AND INVESTMENT INCOME
+
+Where significant investments exist, determine whether related income appears where reasonably expected, including:
+
+* profit on debt;
+* dividends;
+* capital gains;
+* mutual fund income.
+
+Do NOT assume every investment must generate taxable income every year.
+
+Only raise an observation where the information in the return provides a reasonable basis for concern.
+
+## 12. TAX CREDITS AND REFUNDS
+
+Review material:
+
+* tax credits;
+* donations;
+* pension contributions;
+* eligible investments;
+* foreign tax credits;
+* refundable withholding taxes.
+
+Check whether the amount claimed appears consistent with the underlying transaction and applicable tax treatment.
+
+Do not flag a legitimate tax credit merely because it reduces the taxpayer's liability.
+
+Raise it only where eligibility, computation, amount or documentary support creates a meaningful concern.
+
+## 13. PERSONAL EXPENSES AND FINANCIAL PROFILE
+
+Compare declared personal expenses with:
+
+* income;
+* wealth;
+* properties;
+* vehicles;
+* investments;
+* family assets, where disclosed;
+* overall financial profile.
+
+Only flag personal expenses where they appear materially unrealistic or create a genuine wealth reconciliation concern.
+
+Do not make lifestyle assumptions that cannot reasonably be supported from the return.
+
+## RISK PRIORITISATION
+
+Rank findings from the most important to the least important.
+
+The highest priority should generally be given to:
+
+* potential unexplained income or assets;
+* major income/withholding mismatches;
+* unsupported sources of wealth;
+* questionable gifts or remittances;
+* material tax shortfalls;
+* incorrect tax treatment;
+* questionable wealth reconciliation;
+* major business turnover inconsistencies.
+
+Medium-level documentary and consistency matters should follow.
+
+Minor matters should appear last.
+
+Do not dilute a serious issue by placing routine documentation observations above it.
+
+## MANDATORY REPORT STRUCTURE - THE REPORT IS ALWAYS A FULL AREA-BY-AREA REVIEW
+
+The final report must review every area below that applies to the uploaded return, each as its own section:
+
+1. ### Wealth Reconciliation (income vs wealth movement)
+2. ### Cash and Bank Position
+3. ### Withholding Tax Review
+4. ### Salary Income and Employer Withholding (only if salary income is present)
+5. ### Business and Trading Activity (only if business or trading income is present)
+6. ### Property Transactions (only if property appears in the return)
+7. ### Gifts, Foreign Remittances and Foreign Assets (only if any are present)
+8. ### Investments and Investment Income (only if investments are present)
+9. ### Personal Expenses and Financial Profile
+
+For each applicable area: include a descriptive heading, a "**Risk Level: High / Medium / Low**" line, and exactly ONE paragraph.
+
+When a genuine concern exists, give the section a specific descriptive heading (for example "### Large Gift Used to Explain Increase in Wealth" or "### Withholding Higher Than Declared Turnover") instead of the generic area name. When the area is clean, use the generic heading and mark it "**Risk Level: Low**".
+
+A return covering all applicable areas will therefore contain at least 5-9 sections. A report of one or two sentences is never acceptable. Do not merge the areas into a single paragraph.
+
+## OUTPUT FORMAT - STRICT
+
+The final report must be in PARAGRAPH FORM.
+
+For every section - genuine observation or confirmed-consistent area - use only:
+
+### Short Descriptive Heading
+
+**Risk Level: High / Medium / Low**
+
+Followed by ONE concise, well-written paragraph.
+
+Do not use bullet points inside a section.
+
+Do not create separate headings such as "What You Should Do", "Recommendation", "Way Forward", "Documents Required" or "Potential Consequences".
+
+Instead, naturally incorporate the recommended course of action into the same paragraph.
+
+## WRITING STYLE
+
+Write for an ordinary non-finance Pakistani taxpayer.
+
+Use simple, professional English.
+
+The taxpayer should understand:
+
+* what was noticed;
+* why it matters;
+* what could potentially happen;
+* what they can practically do about it.
+
+Avoid unnecessary legal jargon.
+
+Where a legal concept is necessary, explain it in plain English.
+
+For example, instead of "Potential exposure exists under section 111." prefer "This amount may be questioned if its source cannot be properly explained and supported with documents."
+
+Mention specific sections of the Income Tax Ordinance only where they genuinely help explain the issue.
+
+## TONE
+
+Do not use alarmist language.
+
+Never say:
+
+* "FBR will issue a notice."
+* "This is illegal."
+* "This amount will definitely become taxable."
+* "This return will be audited."
+
+Instead use professional wording such as:
+
+* "This may attract further verification."
+* "This could be questioned if adequate supporting evidence is not available."
+* "This deserves review before relying on the declared position."
+* "Keeping appropriate supporting records will strengthen your position if clarification is requested."
+
+## QUALITY OF EACH PARAGRAPH
+
+Every observation should naturally answer four questions:
+
+1. What did we identify?
+2. Why does it stand out?
+3. Why could it matter from an FBR/tax perspective?
+4. What can the taxpayer practically do now?
+
+Answer all four naturally within ONE paragraph.
+
+## CONFIRMED CONSISTENT SECTIONS (clean areas must still be reported)
+
+Never generate an artificial risk simply to fill the report, but NEVER respond with only a one- or two-sentence statement either.
+
+If the return raises no meaningful concern overall, express that clean conclusion inside a full area-by-area review - not as the entire report.
+
+For every applicable review area listed under "MANDATORY REPORT STRUCTURE" below, you must include a section:
+
+* If a genuine concern exists: report it with its real Risk Level (High / Medium / Low) and a plain-language paragraph.
+* If no genuine concern exists: report the area as a confirmed-consistent section with **Risk Level: Low** and one paragraph briefly stating what was checked and why nothing material was identified (for example, that the movement in wealth appears supported by the declared income, or that withholding credits appear consistent with the income disclosed).
+
+A clean area confirmed as consistent is a legitimate finding, not an artificial risk. Never invent amounts, transactions, or issues that are not visible in the return.
+
+## OVERALL ASSESSMENT
+
+After the area-by-area sections, provide ONE short concluding paragraph titled:
+
+### Overall Assessment
+
+Explain in simple language whether the return appears:
+
+* generally consistent;
+* to require attention in certain areas; or
+* to contain significant matters requiring review.
+
+Do not repeat the earlier sections.
+
+The conclusion should tell the taxpayer where they broadly stand.
+
+## FINAL INTERNAL QUALITY CHECK
+
+Before producing the report, silently challenge every proposed observation:
+
+"Would an experienced Pakistani tax consultant genuinely discuss this issue with the client?"
+
+"Is this concern actually supported by something visible in the return?"
+
+"Am I flagging this merely because the amount is large?"
+
+"Have I cross-checked it against the other schedules?"
+
+"Is the risk material enough to deserve space in a maximum 5-10 point report?"
+
+"Have I explained a useful course of action?"
+
+If the observation fails any of these tests, REMOVE IT.
+
+## GOLDEN PRINCIPLE
+
+HIGH AMOUNT DOES NOT EQUAL HIGH RISK.
+
+UNEXPLAINED, INCONSISTENT, INCORRECTLY TAXED OR POORLY SUPPORTED AMOUNT EQUALS POTENTIAL RISK.
+
+The final report must feel as though the taxpayer's complete return was individually reviewed and professionally analysed by an experienced Pakistani tax consultant - not processed through a generic AI checklist.
+
+## DATABASE CONTROL (mandatory)
+
+The knowledge base chunks below are your ONLY source of tax law and statutory knowledge. Before reaching any conclusion, search them, apply the law for the tax year of the uploaded return, and DO NOT apply later law retrospectively. Do not quote a rate, threshold, section, rule, notification or judgment unless verified from the chunks. Where the database does not provide a conclusive answer, state "Further legal verification is required; no definitive adverse conclusion should presently be drawn." NEVER invent statutory provisions, thresholds, rates, judicial principles or document requirements.
+
+KNOWLEDGE BASE CHUNKS (the connected tax database - the ONLY source of tax law):
 {context}
 
-TAX RETURN CONTENT TO ANALYZE:
+TAXPAYER INPUT (income tax return and related information extracted from the uploaded PDF):
 {tax_return_text}
 
-Respond with valid JSON only (no markdown, no code fences, no extra text). Use this exact structure:
-{{
-  "overall_health": "green",
-  "overall_summary": "A detailed, comprehensive paragraph summarising the overall risk posture of the tax return.",
-  "key_areas": [
-    {{
-      "area": "Short name of the red flag or area of concern",
-      "status": "red",
-      "risk_level": "High Attention Required",
-      "explanation": "A detailed, comprehensive paragraph explaining the concern in full paragraphs."
-    }}
-  ],
-  "next_step": "We recommend scheduling a free one-to-one review with a Tax Support Hub professional to discuss your tax return in detail."
-}}
-
-Rules for status values:
-- "red": High attention required. A significant red flag that the tax authority may question; supporting documentation and prompt attention are needed.
-- "yellow": Supporting documentation recommended or review for consistency. A genuine but lesser concern that should be backed by evidence.
-- "green": No concern noted in this area.
-
-Rules for risk_level values (use the label that best matches the status):
-- "High Attention Required" for red status.
-- "Supporting Documentation Recommended" or "Review for Consistency" for yellow status.
-- "No Concern Noted" for green status.
-
-Writing requirements (VERY IMPORTANT):
-- Order the key_areas array from the highest risk to the lowest risk, so the most serious red flag comes first.
-- Write the overall_summary as a detailed paragraph of at least 3-4 complete sentences that leads with the risk posture: whether the return contains red flags, which areas are most likely to be questioned, and the overall level of attention required.
-- Write each key area explanation as a detailed, comprehensive paragraph of at least 4-6 complete sentences that answers all of these:
-  1. What was noticed (the observation).
-  2. Why it is a concern (the professional reasoning).
-  3. Why the tax authority may question it in the future (what could trigger a notice, inquiry, audit or request for evidence).
-  4. What could happen if it is not properly supported (the potential exposure, stated professionally and without overstating it).
-  5. The way forward: the recommended action and the documents/evidence the client should keep ready.
-- Use proper paragraph form with complete sentences. Do NOT use bullet points, lists, headings or terse one-line answers.
-- Keep the language client-friendly and non-technical (no jargon).
-- Use professional, defensible wording. NEVER use language like "this is illegal", "the tax authority will definitely issue a notice", or "a guaranteed audit". Instead say things like "this item may attract scrutiny", "this may require further explanation if selected for review", and "supporting documentation should be retained to substantiate the declared position".
-- Include exactly 5 key areas in the key_areas array, ordered highest risk first.
-- If no knowledge base context is available, set overall_health to "yellow" and explain that a manual review is needed.
+FINAL OUTPUT INSTRUCTION:
+Respond ONLY with the paragraph-form area-by-area report described above. Do NOT use JSON. Do NOT wrap the report in markdown code fences. Start directly with the first section heading (for example "### Wealth Reconciliation" or "### Large Gift Used to Explain Increase in Wealth"). Cover every applicable area of the MANDATORY REPORT STRUCTURE, grading genuine concerns High/Medium/Low and clean areas as Low confirmed-consistent sections. End the report with "### Overall Assessment" followed by its single paragraph. You may not add any other sections. A one- or two-sentence report is NEVER acceptable.
 """
     return prompt
 
 
+def build_fallback_report(
+    summary: str,
+    observations: List[dict],
+    risk: str = "Low",
+) -> str:
+    """Build a paragraph-form fallback report.
+
+    Each observation dict may carry 'heading' and 'text'. The result uses the
+    same paragraph structure as the AI-generated report so the frontend renders
+    it identically.
+    """
+    if risk not in RISK_LEVELS:
+        risk = "Low"
+
+    parts = []
+    for obs in observations:
+        heading = (obs.get("heading") or "General Assessment").strip()
+        text = (obs.get("text") or obs.get("observation") or "").strip()
+        if not text:
+            continue
+        parts.append(f"### {heading}\n\n**Risk Level: {risk}**\n\n{text}")
+
+    if not parts:
+        parts.append(
+            "### Manual Review Recommended\n\n"
+            "**Risk Level: Low**\n\n"
+            "A tax professional should manually review this return to confirm the "
+            "position before filing, as automated analysis could not be completed."
+        )
+
+    parts.append(f"### Overall Assessment\n\n{summary.strip()}")
+
+    return "\n\n".join(parts)
+
+
 def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
     if not OPENAI_API_KEY or not client:
-        return json.dumps({
-            "overall_health": "yellow",
-            "overall_summary": "The AI analysis service has not been configured with a valid OpenAI API key, so your tax return could not be reviewed by our automated assistant. This is a technical configuration step on our side and does not reflect on your tax return in any way. A manual review by one of our tax professionals will provide you with the same careful attention.",
-            "key_areas": [
+        return build_fallback_report(
+            summary="The AI analysis service has not been configured with a valid OpenAI API key, so your tax return could not be reviewed by our automated assistant. This is a technical configuration step on our side and does not reflect on your tax return in any way. A manual review by one of our tax professionals will provide you with the same careful attention.",
+            observations=[
                 {
-                    "area": "Configuration Required",
-                    "status": "yellow",
-                    "risk_level": "Review for Consistency",
-                    "explanation": "The AI analysis service needs a valid OpenAI API key to function, and this key has not yet been configured. Without it, the automated assistant cannot securely read or analyse your tax return. This is entirely a technical setup matter on our side and does not indicate any problem with the document you uploaded. Please contact the site administrator so the service can be enabled, and in the meantime you can still receive a thorough review from one of our tax professionals."
+                    "heading": "Configuration Required",
+                    "text": "The AI analysis service needs a valid OpenAI API key to function, and this key has not yet been configured. Without it, the automated assistant cannot securely read or analyse your tax return. This is entirely a technical setup matter on our side and does not indicate any problem with the document you uploaded. Please contact the site administrator so the service can be enabled, or schedule a free one-to-one review with Tax Support Hub for a manual assessment.",
                 }
             ],
-            "next_step": "Please set up your OpenAI API key in the .env file and restart the server, or schedule a free one-to-one review with Tax Support Hub for a manual assessment."
-        })
+        )
 
     system_prompt = (
-        "You are a senior tax risk reviewer for Tax Support Hub. Your job is to identify red flags "
-        "and areas of concern in tax returns that the tax authority may question now or in the future. "
-        "You respond only with valid JSON following the exact structure requested by the user, using "
-        "only the provided knowledge base."
+        "You are an expert Pakistan Income Tax Return Review, Risk Assessment and Preventive "
+        "Compliance Assistant for Tax Support Hub. You perform a professional face-of-return "
+        "tax risk review of individual income tax returns and wealth statements. You respond "
+        "ONLY with the paragraph-form report defined in the user's instructions, using only "
+        "the provided knowledge base as the source of tax law."
     )
 
     last_error = None
-    use_structured_outputs = True
     for attempt in range(max_retries):
         try:
             logger.info(f"Calling OpenAI API (attempt {attempt + 1}/{max_retries})")
-            response_format = (
-                {"type": "json_schema", "json_schema": REPORT_JSON_SCHEMA}
-                if use_structured_outputs
-                else {"type": "json_object"}
-            )
             response = client.chat.completions.create(
                 model=OPENAI_MODEL,
                 temperature=0.0,
-                response_format=response_format,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
@@ -397,23 +872,15 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                 time.sleep(delay)
                 continue
             elif "SAFETY" in error_str.upper() or "BLOCKED" in error_str.upper() or "content_policy" in error_str.lower():
-                return json.dumps({
-                    "overall_health": "yellow",
-                    "overall_summary": "Our automated analysis was unable to process this tax return because the content triggered the AI safety filter. This is a protective safeguard designed to keep your information secure, and it does not mean there is anything wrong with your return. A manual review by one of our tax professionals will give you the thorough assessment you need.",
-                    "key_areas": [
+                return build_fallback_report(
+                    summary="Our automated analysis was unable to process this tax return because the content triggered the AI safety filter. This is a protective safeguard designed to keep your information secure, and it does not mean there is anything wrong with your return. A manual review by one of our tax professionals will give you the thorough assessment you need.",
+                    observations=[
                         {
-                            "area": "AI Safety Filter",
-                            "status": "yellow",
-                            "risk_level": "Review for Consistency",
-                            "explanation": "The automated system declined to analyse this document because its content was flagged by the safety filter. These filters are deliberately cautious to protect your privacy and to avoid generating guidance from unclear or restricted material. As a result, we cannot offer automated findings on this occasion. A qualified tax professional will review your return manually to check its completeness, its compliance with current rules, the deductions and credits that apply, and any potential risks."
+                            "heading": "AI Safety Filter",
+                            "text": "The automated system declined to analyse this document because its content was flagged by the safety filter. These filters are deliberately cautious to protect your privacy and to avoid generating guidance from unclear or restricted material. As a result, we cannot offer automated findings on this occasion, and a qualified tax professional should review this return manually to check its completeness, compliance, deductions, credits and any potential risks. Please schedule a free one-to-one review with Tax Support Hub for a thorough manual assessment.",
                         }
                     ],
-                    "next_step": "Please schedule a free one-to-one review with Tax Support Hub for a thorough manual assessment."
-                })
-            elif use_structured_outputs and ("json_schema" in error_str.lower() or "response_format" in error_str.lower() or "not supported" in error_str.lower() or "400" in error_str or "422" in error_str):
-                logger.info("Structured outputs not supported by this endpoint. Falling back to json_object mode.")
-                use_structured_outputs = False
-                continue
+                )
             else:
                 if attempt < max_retries - 1:
                     delay = RETRY_BASE_DELAY * (2 ** attempt)
@@ -422,97 +889,109 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                 break
 
     logger.error(f"All OpenAI API retries exhausted. Last error: {last_error}")
-    return json.dumps({
-        "overall_health": "yellow",
-        "overall_summary": "The AI analysis service is temporarily unavailable, so we could not complete an automated review of your tax return at this moment. This is a temporary technical issue on our side and does not reflect on your tax return. Please try again shortly, or speak with one of our tax professionals for an immediate manual assessment.",
-        "key_areas": [
+    return build_fallback_report(
+        summary="The AI analysis service is temporarily unavailable, so we could not complete an automated review of your tax return at this moment. This is a temporary technical issue on our side and does not reflect on your tax return. Please try again shortly, or speak with one of our tax professionals for an immediate manual assessment.",
+        observations=[
             {
-                "area": "Service Temporarily Unavailable",
-                "status": "yellow",
-                "risk_level": "Review for Consistency",
-                "explanation": "Our automated analysis service could not be reached after several attempts. This can happen during brief maintenance windows or periods of high demand. Your tax return has not been affected, and no data has been lost. Please retry the analysis in a few minutes, or contact Tax Support Hub to book a manual review so your return can still be assessed properly."
+                "heading": "Service Temporarily Unavailable",
+                "text": "Our automated analysis service could not be reached after several attempts. This can happen during brief maintenance windows or periods of high demand. Your tax return has not been affected, and no data has been lost. Please retry the analysis in a few minutes, or contact Tax Support Hub to book a manual review.",
             }
         ],
-        "next_step": "Please try the analysis again in a few minutes, or schedule a free one-to-one review with Tax Support Hub."
-    })
+    )
 
 
-def parse_ai_response(response_text: str) -> dict:
+def _parse_report_sections(report_text: str):
+    """Split a paragraph-form report into (intro, [(heading, body), ...]).
+
+    Mirrors the frontend's parseReport() so headings and bodies are handled
+    consistently: the text before the first "### " is the intro.
+    """
+    intro = ""
+    sections = []
+    parts = re.split(r"\r?\n###\s+", "\n" + report_text.strip())
+    for i, part in enumerate(parts):
+        if not part.strip():
+            continue
+        if i == 0:
+            intro = part.strip()
+            continue
+        lines = part.split("\n")
+        heading = lines[0].strip()
+        body = "\n".join(lines[1:]).strip()
+        sections.append((heading, body))
+    return intro, sections
+
+
+def ensure_full_report(report_text: str) -> str:
+    """Guarantee a full area-by-area report even if the model returned a short one.
+
+    If the report has too few sections or is too short, the missing standard
+    "confirmed consistent" areas are appended (only for areas not already
+    covered). Any genuine observations the model produced are preserved, and the
+    report always ends with "### Overall Assessment".
+    """
+    intro, sections = _parse_report_sections(report_text)
+    observation_sections = [
+        (h, b) for (h, b) in sections if "overall assessment" not in h.lower()
+    ]
+
+    if len(observation_sections) >= MIN_REPORT_SECTIONS and len(report_text) >= MIN_REPORT_CHARS:
+        return report_text
+
+    existing_heads = {h.lower() for (h, _) in sections}
+    additions = [
+        f"### {heading}\n\n**Risk Level: Low**\n\n{paragraph}"
+        for heading, paragraph in CONSISTENT_AREA_SECTIONS
+        if heading.lower() not in existing_heads
+    ]
+
+    overall = None
+    body_sections = []
+    for h, b in sections:
+        if "overall assessment" in h.lower():
+            overall = b
+        else:
+            body_sections.append((h, b))
+
+    out = []
+    if intro:
+        out.append(intro)
+    for h, b in body_sections:
+        out.append(f"### {h}\n\n{b}")
+    out.extend(additions)
+    if overall:
+        out.append(f"### Overall Assessment\n\n{overall}")
+    else:
+        out.append(
+            "### Overall Assessment\n\n"
+            "Based on the information available, the return appears to be generally "
+            "consistent, though a manual review by a Tax Support Hub professional is "
+            "recommended to confirm this position before filing."
+        )
+
+    return "\n\n".join(out)
+
+
+def clean_report_text(response_text: str) -> str:
     cleaned = response_text.strip()
     if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"^```(?:markdown|md|text)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
     cleaned = cleaned.strip()
 
-    try:
-        result = json.loads(cleaned)
-    except json.JSONDecodeError:
-        json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if json_match:
-            try:
-                result = json.loads(json_match.group())
-            except json.JSONDecodeError:
-                result = None
-        else:
-            result = None
+    if "### Overall Assessment" not in cleaned:
+        cleaned += (
+            "\n\n### Overall Assessment\n\n"
+            "Based on the information available, the return appears to be generally "
+            "consistent, though a manual review by a Tax Support Hub professional is "
+            "recommended to confirm this position before filing."
+        )
 
-    if result is None:
-        logger.warning("Failed to parse AI response as JSON, using fallback")
-        return {
-            "overall_health": "yellow",
-            "overall_summary": "Our automated assistant returned a response that could not be processed into a readable report. This is a rare technical issue and does not indicate a problem with your tax return. To make sure your return is still reviewed properly, we recommend a manual assessment by one of our tax professionals.",
-            "key_areas": [
-                {
-                    "area": "Analysis Response Issue",
-                    "status": "yellow",
-                    "risk_level": "Review for Consistency",
-                    "explanation": "The AI produced a response that our system could not interpret, so no automated findings could be generated. This occasionally happens when the analysis service returns information in an unexpected format. It does not affect the safety or status of your uploaded document. A tax professional should review this return manually to ensure every section is checked, including completeness, compliance with current rules, deductions and credits, and any potential risks."
-                }
-            ],
-            "next_step": "Please schedule a free one-to-one review with Tax Support Hub for a thorough manual assessment."
-        }
+    return ensure_full_report(cleaned)
 
-    if "key_areas" not in result or not isinstance(result["key_areas"], list):
-        result["key_areas"] = [
-            {
-                "area": "General Assessment",
-                "status": result.get("overall_health", "yellow"),
-                "explanation": "Your tax return has been reviewed. Please see the overall summary above."
-            }
-        ]
 
-    valid_statuses = {"red", "yellow", "green"}
-    valid_risk_levels = {
-        "High Attention Required",
-        "Supporting Documentation Recommended",
-        "Review for Consistency",
-        "No Concern Noted",
-    }
-
-    normalized_areas = []
-    for area in result["key_areas"]:
-        if not isinstance(area, dict):
-            logger.warning(f"Skipping malformed key area entry: {type(area).__name__}")
-            continue
-        if "status" not in area or area["status"] not in valid_statuses:
-            area["status"] = "yellow"
-        if "area" not in area:
-            area["area"] = "General"
-        if "explanation" not in area:
-            area["explanation"] = "This area requires further review by a tax professional."
-        if "risk_level" not in area or area["risk_level"] not in valid_risk_levels:
-            status = area.get("status", "yellow")
-            if status == "red":
-                area["risk_level"] = "High Attention Required"
-            elif status == "green":
-                area["risk_level"] = "No Concern Noted"
-            else:
-                area["risk_level"] = "Supporting Documentation Recommended"
-        normalized_areas.append(area)
-
-    result["key_areas"] = normalized_areas
-
-    return result
+def parse_ai_response(response_text: str) -> dict:
+    return {"report": clean_report_text(response_text)}
 
 
 # ---------------------------------------------------------------------------
@@ -531,8 +1010,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Tax Health Checker",
-    description="AI-powered tax return health check tool for Tax Support Hub",
-    version="1.2.0",
+    description="AI-powered tax return risk review tool for Tax Support Hub",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -650,45 +1129,17 @@ async def health_check_upload(file: UploadFile = File(...)):
 
     if not chunks:
         logger.info("No relevant chunks found. Returning manual review response.")
-        return {
-            "overall_health": "yellow",
-            "overall_summary": "Your tax return was received successfully, but our automated assistant could not find matching scenarios in our knowledge base to compare it against. This is not unusual, as every tax return is unique, and it simply means that a detailed manual review by one of our tax professionals is the best next step for you.",
-            "key_areas": [
+        return parse_ai_response(build_fallback_report(
+            summary="Your tax return was received successfully, but our automated assistant could not find matching scenarios in our knowledge base to compare it against. This is not unusual, as every tax return is unique, and it simply means that a detailed manual review by one of our tax professionals is the best next step for you.",
+            observations=[
                 {
-                    "area": "Knowledge Base Coverage",
-                    "status": "yellow",
-                    "risk_level": "Review for Consistency",
-                    "explanation": "Our automated system could not find tax scenarios in our knowledge base that closely match the details in your specific return. This happens when a return is unique or contains uncommon arrangements, and it is not a cause for concern. It simply means the automated assistant could not draw a reliable comparison, so a human expert is better placed to give you accurate guidance. Your return will still be looked at carefully by a qualified professional who can give you the attention it deserves."
-                },
-                {
-                    "area": "Completeness Check",
-                    "status": "yellow",
-                    "risk_level": "Supporting Documentation Recommended",
-                    "explanation": "We were unable to automatically verify that all required sections of your tax return are complete. Completeness covers things like your personal details, income statements, deductions and any supporting schedules. Because a full automated comparison could not be run, we cannot confirm at this stage whether anything is missing or outstanding. A tax professional will review every section of your return to make sure nothing has been overlooked."
-                },
-                {
-                    "area": "Compliance Review",
-                    "status": "yellow",
-                    "risk_level": "Supporting Documentation Recommended",
-                    "explanation": "Automated compliance checking could not be completed because there was insufficient reference material to compare against your return. Compliance means making sure your return follows the current tax rules, including the correct treatment of income, expenses and reporting requirements. Without a reliable comparison, we prefer not to guess at your situation. A qualified professional will check your return against the current rules to help ensure it is fully compliant."
-                },
-                {
-                    "area": "Deduction & Credit Analysis",
-                    "status": "yellow",
-                    "risk_level": "Supporting Documentation Recommended",
-                    "explanation": "We could not automatically verify whether all the deductions and tax credits you may be entitled to have been claimed on your return. Deductions reduce the tax you pay, and missing one could mean you pay more than necessary. Because this check requires careful interpretation of your individual circumstances, we recommend having a professional review your expenses and entitlements so that every benefit you are owed is claimed."
-                },
-                {
-                    "area": "Risk Assessment",
-                    "status": "yellow",
-                    "risk_level": "Review for Consistency",
-                    "explanation": "A full risk assessment involves checking for errors, inconsistencies or anything that could attract attention from the tax authority. This kind of review requires judgement and experience, which our automated assistant is not able to provide without a reliable knowledge base match. A qualified tax professional will examine your return for potential risks and help you address them before any issues arise."
+                    "heading": "Knowledge Base Coverage",
+                    "text": "Our automated system could not find tax scenarios in our knowledge base that closely match the details in your specific return. This happens when a return is unique or contains uncommon arrangements, and it is not a cause for concern. It simply means the automated assistant could not draw a reliable comparison, so a human expert is better placed to give you accurate guidance. A qualified professional will review every section of your return, including completeness, compliance, deductions, credits and any potential risks, so that every benefit you are owed is claimed and nothing has been overlooked.",
                 }
             ],
-            "next_step": "Schedule a free one-to-one review with a Tax Support Hub professional to get a thorough analysis of your tax return."
-        }
+        ))
 
-    prompt = build_strict_prompt(tax_return_text, chunks)
+    prompt = build_review_prompt(tax_return_text, chunks)
     ai_response = call_openai_with_retry(prompt)
     result = parse_ai_response(ai_response)
 
