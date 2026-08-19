@@ -17,8 +17,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 class LeadCapture(BaseModel):
-    email: str
     phone: str
+    email: str = ""
 
 
 logging.basicConfig(
@@ -132,8 +132,8 @@ def init_db():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS leads (
                 id SERIAL PRIMARY KEY,
-                email VARCHAR(255) NOT NULL,
                 phone VARCHAR(50) NOT NULL,
+                email VARCHAR(255),
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
@@ -685,14 +685,23 @@ def capture_lead(data: LeadCapture):
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO leads (email, phone) VALUES (%s, %s)",
-            (data.email.strip(), data.phone.strip()),
-        )
+        email_val = data.email.strip() if data.email else None
+        phone_val = data.phone.strip()
+        try:
+            cur.execute(
+                "INSERT INTO leads (phone, email) VALUES (%s, %s)",
+                (phone_val, email_val),
+            )
+        except psycopg2.errors.NotNullViolation:
+            conn.rollback()
+            cur.execute(
+                "INSERT INTO leads (phone, email) VALUES (%s, %s)",
+                (phone_val, email_val or "N/A"),
+            )
         conn.commit()
         cur.close()
         conn.close()
-        logger.info(f"Lead captured: {data.email}")
+        logger.info(f"Lead captured: {phone_val}")
         return {"success": True}
     except Exception as e:
         logger.error(f"Failed to capture lead: {e}")

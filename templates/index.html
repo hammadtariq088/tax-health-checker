@@ -7,12 +7,6 @@
       Tax Return Health Checker | TAX SUPPORT HUB (SMC) PRIVATE LIMITED
     </title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-      integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -726,6 +720,151 @@
       .clean-return p {
         margin: 0;
       }
+
+      /* ---- Phone Gate ---- */
+      .phone-gate-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(255, 255, 255, 0.97);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(6px);
+        animation: fadeIn 0.3s ease-out;
+      }
+      .phone-gate-card {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+        text-align: center;
+        animation: fadeInUp 0.4s ease-out;
+      }
+      .phone-gate-card h2 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 0 0.4rem;
+      }
+      .phone-gate-card .subtitle {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        margin: 0 0 1.5rem;
+      }
+      .phone-gate-card input {
+        width: 100%;
+        padding: 0.75rem 0.9rem;
+        border: 1.5px solid var(--gray-border);
+        border-radius: 8px;
+        font-size: 1rem;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .phone-gate-card input:focus {
+        border-color: var(--primary);
+      }
+      .phone-gate-card .btn-primary {
+        margin-top: 0.75rem;
+      }
+      .phone-gate-disclaimer {
+        font-size: 0.75rem;
+        color: var(--text-light);
+        margin-top: 1rem !important;
+      }
+      .main-blurred {
+        filter: blur(8px);
+        pointer-events: none;
+        user-select: none;
+      }
+
+      /* ---- Accordion Report ---- */
+      .accordion-item {
+        border: 1px solid var(--gray-border);
+        border-left: 4px solid var(--primary);
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        background: var(--gray-light);
+        overflow: hidden;
+        transition: box-shadow 0.2s;
+      }
+      .accordion-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      .accordion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1.15rem;
+        cursor: pointer;
+        user-select: none;
+        gap: 0.75rem;
+      }
+      .accordion-title {
+        font-weight: 600;
+        margin: 0;
+        flex: 1;
+        text-align: left;
+      }
+      .accordion-chevron {
+        font-size: 0.7rem;
+        color: var(--text-light);
+        transition: transform 0.3s ease;
+        flex-shrink: 0;
+      }
+      .accordion-item.open .accordion-chevron {
+        transform: rotate(180deg);
+      }
+      .accordion-body {
+        max-height: 0;
+        overflow: hidden;
+        transition:
+          max-height 0.35s ease,
+          padding 0.35s ease;
+        padding: 0 1.15rem;
+      }
+      .accordion-item.open .accordion-body {
+        max-height: 800px;
+        padding: 0 1.15rem 1rem;
+      }
+      .accordion-body p {
+        margin: 0;
+        line-height: 1.65;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+      .accordion-blurred .accordion-body {
+        filter: blur(6px);
+        pointer-events: none;
+        user-select: none;
+        max-height: 800px;
+        padding: 0 1.15rem 1rem;
+      }
+      .accordion-cta-overlay {
+        display: none;
+        text-align: center;
+        padding: 0.75rem 1.15rem 1rem;
+      }
+      .accordion-blurred .accordion-cta-overlay {
+        display: block;
+      }
+      .accordion-cta-overlay p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-light);
+        line-height: 1.6;
+      }
+      .accordion-cta-overlay a {
+        color: var(--primary);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .accordion-cta-overlay a:hover {
+        text-decoration: underline;
+      }
       .stat-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -889,326 +1028,357 @@
     </style>
   </head>
   <body>
-    <!-- Brand Header -->
-    <div class="brand-header">
-      <h1><span class="logo-text">Tax Return Health Checker</span></h1>
-      <div class="subtitle">
-        Powered by TAX SUPPORT HUB (SMC) PRIVATE LIMITED
+    <!-- Phone Gate Overlay -->
+    <div id="phoneGate" class="phone-gate-overlay">
+      <div class="phone-gate-card">
+        <h2>Tax Return Health Checker</h2>
+        <p class="subtitle">Enter your phone number to get started</p>
+        <form id="phoneGateForm" autocomplete="off">
+          <input
+            type="tel"
+            id="gatePhone"
+            placeholder="03XX XXX XXXX"
+            required
+          />
+          <button type="submit" class="btn-primary" id="gateSubmitBtn">
+            Continue
+          </button>
+        </form>
+        <p class="phone-gate-disclaimer">
+          Your number is kept confidential and used only for this service.
+        </p>
       </div>
     </div>
 
-    <div style="max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem">
-      <!-- Upload Card -->
-      <div class="card anim-fade-in-up" id="uploadCard">
-        <h2
-          style="
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--secondary);
-            margin: 0 0 0.25rem;
-          "
-        >
-          How Healthy Is Your Tax Return?
-        </h2>
-        <p
-          style="
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin: 0 0 1.5rem;
-            line-height: 1.5;
-          "
-        >
-          Upload your return (PDF) and our AI will scan it against our Pakistan
-          tax knowledge base to surface risks, and compliance gaps so you can
-          fix issues before the tax authority does.
-        </p>
-        <div
-          style="
-            font-size: 0.75rem;
-            color: var(--text-light);
-            text-align: center;
-            margin-bottom: 0.5rem;
-          "
-        >
-          <span id="kbStatus">Checking Knowledge Base...</span>
-        </div>
-
-        <div class="drop-zone" id="dropZone">
-          <div class="drop-zone-icon">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-          </div>
-          <div class="drop-zone-text">
-            <strong>Click to upload</strong> or drag and drop<br />
-            your tax return PDF here
-          </div>
-          <div
-            style="
-              font-size: 0.8rem;
-              color: var(--text-light);
-              margin-top: 0.5rem;
-            "
-          >
-            PDF format, max 50 MB
-          </div>
-          <input
-            type="file"
-            id="fileInput"
-            accept=".pdf"
-            style="display: none"
-          />
-        </div>
-
-        <div id="fileInfo" class="file-info hidden">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--primary)"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-          <span
-            id="fileName"
-            style="
-              font-size: 0.9rem;
-              font-weight: 500;
-              color: var(--secondary);
-              flex: 1;
-            "
-          ></span>
-          <button
-            id="removeFile"
-            style="
-              background: none;
-              border: none;
-              cursor: pointer;
-              color: var(--text-light);
-              padding: 4px;
-              border-radius: 4px;
-              transition: background 0.2s;
-            "
-            title="Remove file"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <button
-          id="analyzeBtn"
-          class="btn-primary"
-          style="margin-top: 1.25rem"
-          disabled
-        >
-          Analyze Tax Return
-        </button>
-      </div>
-
-      <!-- Scanning Card -->
-      <div
-        id="scanningCard"
-        class="card hidden"
-        style="text-align: center; padding: 2.5rem 2rem"
-      >
-        <div class="scan-container">
-          <div class="pulse-ring"></div>
-          <div class="scan-document">
-            <div class="line"></div>
-            <div class="line"></div>
-            <div class="line"></div>
-            <div class="line"></div>
-            <div class="scan-beam"></div>
-          </div>
-        </div>
-        <h3
-          id="scanTitle"
-          style="
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--secondary);
-            margin: 0 0 0.25rem;
-          "
-        >
-          Analyzing Your Tax Return
-        </h3>
-        <p
-          id="scanSubtitle"
-          style="
-            color: var(--text-light);
-            font-size: 0.85rem;
-            margin: 0;
-            line-height: 1.5;
-          "
-        >
-          Extracting text from your PDF...
-        </p>
-
-        <div class="progress-steps" id="progressSteps">
-          <div class="step-item">
-            <div class="step-connector" id="conn1"></div>
-            <div class="step-dot" id="step1">1</div>
-            <div class="step-label" id="label1">Extract</div>
-          </div>
-          <div class="step-item">
-            <div class="step-connector" id="conn2"></div>
-            <div class="step-dot" id="step2">2</div>
-            <div class="step-label" id="label2">Search</div>
-          </div>
-          <div class="step-item">
-            <div class="step-connector" id="conn3"></div>
-            <div class="step-dot" id="step3">3</div>
-            <div class="step-label" id="label3">Analyze</div>
-          </div>
-          <div class="step-item">
-            <div class="step-dot" id="step4">4</div>
-            <div class="step-label" id="label4">Report</div>
-          </div>
+    <!-- Main Content (blurred when gate is active) -->
+    <div id="mainContent">
+      <!-- Brand Header -->
+      <div class="brand-header">
+        <h1><span class="logo-text">Tax Return Health Checker</span></h1>
+        <div class="subtitle">
+          Powered by TAX SUPPORT HUB (SMC) PRIVATE LIMITED
         </div>
       </div>
 
-      <!-- Error Card -->
-      <div id="errorCard" class="card hidden">
-        <div class="error-message" id="errorMessage"></div>
-        <button id="retryBtn" class="btn-primary" style="margin-top: 1rem">
-          Try Again
-        </button>
-      </div>
-
-      <!-- Report Card -->
-      <div id="reportCard" class="card hidden">
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-bottom: 0.75rem;
-          "
-        >
+      <div style="max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem">
+        <!-- Upload Card -->
+        <div class="card anim-fade-in-up" id="uploadCard">
           <h2
             style="
               font-size: 1.2rem;
               font-weight: 700;
               color: var(--secondary);
-              margin: 0;
+              margin: 0 0 0.25rem;
             "
           >
-            Your Tax Return Risk Review
+            How Healthy Is Your Tax Return?
           </h2>
-        </div>
-        <div id="reportSections" class="anim-fade-in-up"></div>
-
-        <div class="next-step-cta" id="nextStepCta">
-          <h3>Get a Free One-to-One Review</h3>
-          <p id="ctaText">
-            Our tax professionals at Tax Support Hub would be happy to review
-            your return in detail and provide personalised advice.
-          </p>
-          <a
-            href="https://taxsupporthub.com/contact/"
-            class="btn-cta"
-            target="_blank"
-            rel="noopener"
+          <p
+            style="
+              color: var(--text-light);
+              font-size: 0.9rem;
+              margin: 0 0 1.5rem;
+              line-height: 1.5;
+            "
           >
-            Book Your Free Review
-          </a>
-        </div>
+            Upload your return (PDF) and our AI will scan it against our
+            Pakistan tax knowledge base to surface risks, and compliance gaps so
+            you can fix issues before the tax authority does.
+          </p>
+          <div
+            style="
+              font-size: 0.75rem;
+              color: var(--text-light);
+              text-align: center;
+              margin-bottom: 0.5rem;
+            "
+          >
+            <span id="kbStatus">Checking Knowledge Base...</span>
+          </div>
 
-        <div class="action-row">
-          <button class="btn-secondary" id="downloadPdfBtn">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
+            <div class="drop-zone-text">
+              <strong>Click to upload</strong> or drag and drop<br />
+              your tax return PDF here
+            </div>
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--text-light);
+                margin-top: 0.5rem;
+              "
+            >
+              PDF format, max 50 MB
+            </div>
+            <input
+              type="file"
+              id="fileInput"
+              accept=".pdf"
+              style="display: none"
+            />
+          </div>
+
+          <div id="fileInfo" class="file-info hidden">
             <svg
-              width="18"
-              height="18"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="currentColor"
+              stroke="var(--primary)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download PDF
-          </button>
-          <a
-            class="btn-success"
-            id="whatsappBtn"
-            target="_blank"
-            rel="noopener"
-            title="Book on WhatsApp"
-            href="https://wa.me/923130373703?text=Hi%2C%20I%27d%20like%20to%20book%20a%20tax%20health%20review%20call."
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path
-                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
               />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            Book on WhatsApp
-          </a>
+            <span
+              id="fileName"
+              style="
+                font-size: 0.9rem;
+                font-weight: 500;
+                color: var(--secondary);
+                flex: 1;
+              "
+            ></span>
+            <button
+              id="removeFile"
+              style="
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--text-light);
+                padding: 4px;
+                border-radius: 4px;
+                transition: background 0.2s;
+              "
+              title="Remove file"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <button
+            id="analyzeBtn"
+            class="btn-primary"
+            style="margin-top: 1.25rem"
+            disabled
+          >
+            Analyze Tax Return
+          </button>
         </div>
 
-        <div style="text-align: center; margin-top: 1rem">
-          <button
-            id="newCheckBtn"
+        <!-- Scanning Card -->
+        <div
+          id="scanningCard"
+          class="card hidden"
+          style="text-align: center; padding: 2.5rem 2rem"
+        >
+          <div class="scan-container">
+            <div class="pulse-ring"></div>
+            <div class="scan-document">
+              <div class="line"></div>
+              <div class="line"></div>
+              <div class="line"></div>
+              <div class="line"></div>
+              <div class="scan-beam"></div>
+            </div>
+          </div>
+          <h3
+            id="scanTitle"
             style="
-              background: none;
-              border: none;
-              color: var(--primary);
+              font-size: 1.1rem;
               font-weight: 600;
-              font-size: 0.9rem;
-              cursor: pointer;
-              text-decoration: underline;
-              transition: opacity 0.2s;
+              color: var(--secondary);
+              margin: 0 0 0.25rem;
             "
           >
-            Check Another Tax Return
+            Analyzing Your Tax Return
+          </h3>
+          <p
+            id="scanSubtitle"
+            style="
+              color: var(--text-light);
+              font-size: 0.85rem;
+              margin: 0;
+              line-height: 1.5;
+            "
+          >
+            Extracting text from your PDF...
+          </p>
+
+          <div class="progress-steps" id="progressSteps">
+            <div class="step-item">
+              <div class="step-connector" id="conn1"></div>
+              <div class="step-dot" id="step1">1</div>
+              <div class="step-label" id="label1">Extract</div>
+            </div>
+            <div class="step-item">
+              <div class="step-connector" id="conn2"></div>
+              <div class="step-dot" id="step2">2</div>
+              <div class="step-label" id="label2">Search</div>
+            </div>
+            <div class="step-item">
+              <div class="step-connector" id="conn3"></div>
+              <div class="step-dot" id="step3">3</div>
+              <div class="step-label" id="label3">Analyze</div>
+            </div>
+            <div class="step-item">
+              <div class="step-dot" id="step4">4</div>
+              <div class="step-label" id="label4">Report</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Card -->
+        <div id="errorCard" class="card hidden">
+          <div class="error-message" id="errorMessage"></div>
+          <button id="retryBtn" class="btn-primary" style="margin-top: 1rem">
+            Try Again
           </button>
         </div>
-      </div>
 
-      <div class="footer anim-fade-in-up">
-        &copy; 2025 – 2026
-        <a href="https://taxsupporthub.com/" target="_blank" rel="noopener"
-          >TAX SUPPORT HUB (SMC) PRIVATE LIMITED</a
-        >. All Rights Reserved.
+        <!-- Report Card -->
+        <div id="reportCard" class="card hidden">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.75rem;
+              flex-wrap: wrap;
+              margin-bottom: 0.75rem;
+            "
+          >
+            <h2
+              style="
+                font-size: 1.2rem;
+                font-weight: 700;
+                color: var(--secondary);
+                margin: 0;
+              "
+            >
+              Your Tax Return Risk Review
+            </h2>
+          </div>
+          <div id="reportSections" class="anim-fade-in-up"></div>
+
+          <div
+            style="
+              text-align: center;
+              margin-top: 1.25rem;
+              padding: 1rem;
+              background: var(--primary-light);
+              border-radius: 10px;
+            "
+          >
+            <p
+              style="
+                font-size: 0.9rem;
+                color: var(--secondary);
+                margin: 0;
+                font-weight: 600;
+                font-style: italic;
+              "
+            >
+              "Need the complete detailed report? please contact at
+              <a
+                href="mailto:inquiry.tsh@gmail.com"
+                style="color: var(--primary); text-decoration: none"
+                >inquiry.tsh@gmail.com</a
+              >
+              |
+              <a
+                href="tel:+923130373703"
+                style="color: var(--primary); text-decoration: none"
+                >0313 037 3703</a
+              >"
+            </p>
+          </div>
+
+          <div class="action-row" style="justify-content: center">
+            <a
+              class="btn-success"
+              id="whatsappBtn"
+              target="_blank"
+              rel="noopener"
+              title="Send Report via WhatsApp"
+              href="#"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+                />
+              </svg>
+              Send via WhatsApp
+            </a>
+          </div>
+
+          <div style="text-align: center; margin-top: 1rem">
+            <button
+              id="newCheckBtn"
+              style="
+                background: none;
+                border: none;
+                color: var(--primary);
+                font-weight: 600;
+                font-size: 0.9rem;
+                cursor: pointer;
+                text-decoration: underline;
+                transition: opacity 0.2s;
+              "
+            >
+              Check Another Tax Return
+            </button>
+          </div>
+        </div>
+
+        <div class="footer anim-fade-in-up">
+          &copy; 2025 – 2026
+          <a href="https://taxsupporthub.com/" target="_blank" rel="noopener"
+            >TAX SUPPORT HUB (SMC) PRIVATE LIMITED</a
+          >. All Rights Reserved.
+        </div>
       </div>
     </div>
+    <!-- end mainContent -->
 
     <!-- WhatsApp FAB -->
     <a
@@ -1216,8 +1386,8 @@
       id="whatsappFab"
       target="_blank"
       rel="noopener"
-      title="Book on WhatsApp"
-      href="https://wa.me/923130373703?text=Hi%2C%20I%27d%20like%20to%20book%20a%20tax%20health%20review%20call."
+      title="Send Report via WhatsApp"
+      href="#"
     >
       <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
         <path
@@ -1225,45 +1395,6 @@
         />
       </svg>
     </a>
-
-    <!-- Lead Capture Modal -->
-    <div id="leadModal" class="modal-overlay hidden">
-      <div class="modal-card">
-        <button class="modal-close" id="modalCloseBtn">&times;</button>
-        <h3>Get Your Report via Email</h3>
-        <p>
-          Enter your contact details below and we'll generate your downloadable
-          tax health report.
-        </p>
-        <form id="leadForm" autocomplete="off">
-          <div class="form-group">
-            <label for="leadEmail">Email Address</label>
-            <input
-              type="email"
-              id="leadEmail"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="leadPhone">Phone Number</label>
-            <input
-              type="tel"
-              id="leadPhone"
-              placeholder="0400 000 000"
-              required
-            />
-          </div>
-          <button type="submit" class="btn-primary" id="leadSubmitBtn">
-            Download Report
-          </button>
-        </form>
-        <p class="modal-disclaimer">
-          Your information is kept confidential and will only be used to contact
-          you regarding your tax health check.
-        </p>
-      </div>
-    </div>
 
     <script>
       (function () {
@@ -1284,21 +1415,20 @@
         const newCheckBtn = document.getElementById("newCheckBtn");
         const scanTitle = document.getElementById("scanTitle");
         const scanSubtitle = document.getElementById("scanSubtitle");
-        const downloadPdfBtn = document.getElementById("downloadPdfBtn");
         const whatsappBtn = document.getElementById("whatsappBtn");
-        const leadModal = document.getElementById("leadModal");
-        const modalCloseBtn = document.getElementById("modalCloseBtn");
-        const leadForm = document.getElementById("leadForm");
-        const leadEmail = document.getElementById("leadEmail");
-        const leadPhone = document.getElementById("leadPhone");
-        const leadSubmitBtn = document.getElementById("leadSubmitBtn");
-        const ctaText = document.getElementById("ctaText");
+        const whatsappFab = document.getElementById("whatsappFab");
+        const phoneGate = document.getElementById("phoneGate");
+        const phoneGateForm = document.getElementById("phoneGateForm");
+        const gatePhone = document.getElementById("gatePhone");
+        const gateSubmitBtn = document.getElementById("gateSubmitBtn");
+        const mainContent = document.getElementById("mainContent");
 
         // ---- State ----
         let selectedFile = null;
         let lastReportData = null;
         let scanTimer = null;
         let stepTimers = [];
+        let userPhone = "";
 
         // ---- Step labels ----
         const STEP_LABELS = [
@@ -1333,6 +1463,24 @@
             r.remove();
           }, 600);
         }
+
+        function normalizePhone(raw) {
+          var digits = raw.replace(/\D/g, "");
+          if (digits.startsWith("0")) return "92" + digits.substring(1);
+          if (digits.startsWith("92")) return digits;
+          return "92" + digits;
+        }
+
+        function unlockApp() {
+          phoneGate.style.display = "none";
+          mainContent.classList.remove("main-blurred");
+        }
+
+        window.toggleAccordion = function (header) {
+          var item = header.closest(".accordion-item");
+          if (item.classList.contains("accordion-blurred")) return;
+          item.classList.toggle("open");
+        };
 
         // ---- View management ----
         function showView(view) {
@@ -1450,7 +1598,9 @@
 
             // Extract heading: first line, stripping **bold** markers
             var lines = part.split(/\r?\n/);
-            var heading = lines.shift().trim()
+            var heading = lines
+              .shift()
+              .trim()
               .replace(/^\*\*/, "")
               .replace(/\*\*$/, "")
               .replace(/^\[/, "")
@@ -1467,72 +1617,6 @@
             observations: observations,
             assessment: "",
           };
-        }
-
-        // ---- PDF Generation ----
-        function buildPDFContent(data) {
-          var parsed = parseReport(data.report);
-          var obs = parsed.observations || [];
-          var intro = parsed.intro || "";
-
-          var obsHtml = "";
-          if (obs.length) {
-            obs.forEach(function (o, idx) {
-              obsHtml +=
-                '<div style="border:1px solid #e0e6ed;border-left:4px solid #0078C8;border-radius:8px;padding:12px 14px;margin-bottom:12px;">' +
-                '<div style="font-weight:700;font-size:13px;color:#213B55;margin-bottom:6px;">' +
-                (idx + 1) + ". " + escapeHtml(o.heading || "") +
-                "</div>" +
-                '<p style="font-size:12px;line-height:1.6;color:#333;margin:0;text-align:justify;">' +
-                escapeHtml(o.text || "") +
-                "</p></div>";
-            });
-          } else if (intro) {
-            obsHtml +=
-              '<div style="background:#e6f4ea;border:1px solid #c6e5cd;border-radius:8px;padding:12px 14px;margin-bottom:12px;">' +
-              '<p style="font-size:12px;line-height:1.6;color:#1e7e34;margin:0;">' +
-              escapeHtml(intro) +
-              "</p></div>";
-          }
-
-          return [
-            '<div style="padding:40px 36px;font-family:Inter, sans-serif;color:#333;max-width:600px;margin:0 auto;">',
-            '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:20px;">',
-            '<h1 style="font-size:22px;font-weight:800;color:#0078C8;margin:0;">Tax Health Checker</h1>',
-            '<p style="font-size:12px;color:#666;margin:4px 0 0;">Pakistan Individual Income Tax Return Risk Review</p>',
-            "</div>",
-            '<p style="font-size:11px;color:#888;margin:0 0 14px;line-height:1.5;">This report identifies genuine potential areas of concern that may reasonably attract an FBR query, verification or documentary challenge. It is advisory in nature.</p>',
-            intro ? '<p style="font-size:14px;font-weight:700;color:#213B55;margin:0 0 12px;">' + escapeHtml(intro) + "</p>" : "",
-            obsHtml,
-            '<div style="background:#0078C8;color:white;border-radius:8px;padding:16px;text-align:center;margin-top:22px;">',
-            '<p style="font-size:13px;margin:0;line-height:1.5;">We recommend scheduling a free one-to-one review with a Tax Support Hub professional to confirm your position.</p>',
-            "</div>",
-            '<div style="text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid #d0d7de;">',
-            '<p style="font-size:9px;color:#999;margin:0;line-height:1.5;">Tax Support Hub &middot; taxsupporthub.com &middot; This report is advisory in nature and does not constitute a legal opinion. Further legal verification may be required.</p>',
-            '<p style="font-size:10px;color:#999;margin:6px 0 0;">Generated on ' +
-              new Date().toLocaleDateString("en-AU", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              }) +
-              " &middot; Tax Support Hub</p>",
-            "</div>",
-            "</div>",
-          ].join("");
-        }
-
-        // ---- Lead modal ----
-        function showLeadModal() {
-          leadModal.classList.remove("hidden");
-          leadEmail.value = "";
-          leadPhone.value = "";
-          leadSubmitBtn.disabled = false;
-          leadSubmitBtn.textContent = "Download Report";
-          leadEmail.focus();
-        }
-
-        function hideLeadModal() {
-          leadModal.classList.add("hidden");
         }
 
         // ---- Upload handlers ----
@@ -1655,16 +1739,40 @@
 
           if (obs.length) {
             obs.forEach(function (o, idx) {
+              var isBlurred = idx >= 4;
+              var isOpen = idx < 4;
+              var cls =
+                "accordion-item" +
+                (isBlurred ? " accordion-blurred" : "") +
+                (isOpen ? " open" : "");
               sectionsHtml +=
-                '<div class="area-detail">' +
-                '<div class="area-head"><h4 class="area-name">' +
-                (idx + 1) + ". " + escapeHtml(o.heading || "") +
-                "</h4>" +
+                '<div class="' +
+                cls +
+                '">' +
+                '<div class="accordion-header" onclick="toggleAccordion(this)">' +
+                '<span class="accordion-number">' +
+                (idx + 1) +
+                "</span>" +
+                '<span class="accordion-title">' +
+                escapeHtml(o.heading || "") +
+                "</span>" +
+                '<svg class="accordion-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' +
                 "</div>" +
+                '<div class="accordion-body">' +
                 '<p style="margin:0;line-height:1.65;color:var(--text);font-size:0.9rem;">' +
                 escapeHtml(o.text || "") +
-                "</p></div>";
+                "</p></div></div>";
             });
+
+            if (obs.length > 4) {
+              sectionsHtml +=
+                '<div class="accordion-cta-overlay" style="display:none;">' +
+                '<p style="font-size:0.95rem;font-weight:700;color:var(--secondary);margin:0 0 0.4rem;">Want the complete report?</p>' +
+                '<p style="font-size:0.85rem;color:var(--text-light);margin:0 0 0.5rem;">Email us for a free detailed review:</p>' +
+                '<p style="margin:0;"><a href="mailto:inquiry.tsh@gmail.com" style="color:var(--primary);font-weight:600;text-decoration:none;">inquiry.tsh@gmail.com</a></p>' +
+                '<p style="margin:0.3rem 0 0;"><a href="tel:+923130373703" style="color:var(--primary);font-weight:600;text-decoration:none;">0313 037 3703</a></p>' +
+                "</div>";
+            }
           } else if (intro) {
             sectionsHtml +=
               '<div class="clean-return"><p>' +
@@ -1678,6 +1786,30 @@
           }
 
           reportSections.innerHTML = sectionsHtml;
+
+          // Build WhatsApp URL with first 4 observations only
+          if (userPhone) {
+            var visibleObs = obs.slice(0, 4);
+            var obsText = visibleObs
+              .map(function (o, i) {
+                return i + 1 + ". " + o.heading + "\n" + o.text;
+              })
+              .join("\n\n");
+            var contactQuote =
+              '\n\n"Need the complete detailed report? please contact at inquiry.tsh@gmail.com | 0313 037 3703"';
+            var msg =
+              "Tax Health Check Report:" +
+              (data.filer_name ? " - " + data.filer_name : "") +
+              (data.fiscal_year ? " (" + data.fiscal_year + ")" : "") +
+              ":\n\n" +
+              (intro ? intro + "\n\n" : "") +
+              obsText +
+              contactQuote;
+            var waUrl =
+              "https://wa.me/" + userPhone + "?text=" + encodeURIComponent(msg);
+            whatsappBtn.href = waUrl;
+            whatsappFab.href = waUrl;
+          }
 
           reportCard.scrollIntoView({ behavior: "smooth", block: "start" });
         }
@@ -1697,44 +1829,27 @@
           analyzeBtn.disabled = true;
         });
 
-        // ---- Download PDF ----
-        downloadPdfBtn.addEventListener("click", function () {
-          if (!lastReportData) return;
-          showLeadModal();
-        });
-
-        // ---- Lead Modal ----
-        modalCloseBtn.addEventListener("click", hideLeadModal);
-        leadModal.addEventListener("click", function (e) {
-          if (e.target === leadModal) hideLeadModal();
-        });
-
-        leadForm.addEventListener("submit", function (e) {
+        // ---- Phone Gate ----
+        phoneGateForm.addEventListener("submit", function (e) {
           e.preventDefault();
-          var email = leadEmail.value.trim();
-          var phone = leadPhone.value.trim();
-          if (!email || !phone) return;
-
-          leadSubmitBtn.disabled = true;
-          leadSubmitBtn.textContent = "Generating...";
+          var raw = gatePhone.value.trim();
+          if (!raw) return;
+          var normalized = normalizePhone(raw);
+          gateSubmitBtn.disabled = true;
+          gateSubmitBtn.textContent = "Saving...";
 
           fetch("/api/capture-lead", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email, phone: phone }),
+            body: JSON.stringify({ phone: normalized }),
           })
-            .then(function (r) {
-              if (!r.ok) throw new Error("Failed to save");
-              return r.json();
-            })
+            .catch(function () {})
             .then(function () {
-              hideLeadModal();
-              triggerPDFDownload(lastReportData);
-            })
-            .catch(function () {
-              // Even if lead capture fails, still allow download
-              hideLeadModal();
-              triggerPDFDownload(lastReportData);
+              userPhone = normalized;
+              localStorage.setItem("thc_phone", normalized);
+              unlockApp();
+              gateSubmitBtn.disabled = false;
+              gateSubmitBtn.textContent = "Continue";
             });
         });
 
@@ -1758,6 +1873,11 @@
 
         // ---- Init ----
         showView(uploadCard);
+        var savedPhone = localStorage.getItem("thc_phone");
+        if (savedPhone) {
+          userPhone = savedPhone;
+          unlockApp();
+        }
       })();
     </script>
   </body>
