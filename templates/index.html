@@ -775,6 +775,19 @@
         color: var(--text-light);
         margin-top: 1rem !important;
       }
+      .phone-gate-card input.invalid {
+        border-color: #e74c3c;
+      }
+      .phone-gate-error {
+        display: none;
+        font-size: 0.8rem;
+        color: #e74c3c;
+        margin: 0.5rem 0 0;
+        text-align: left;
+      }
+      .phone-gate-error.visible {
+        display: block;
+      }
       .main-blurred {
         filter: blur(8px);
         pointer-events: none;
@@ -1038,8 +1051,12 @@
             type="tel"
             id="gatePhone"
             placeholder="03XX XXX XXXX"
+            pattern="[0-9]*"
+            inputmode="numeric"
+            maxlength="15"
             required
           />
+          <p id="phoneError" class="phone-gate-error">Please enter a valid Pakistani phone number (e.g. 03XX XXX XXXX)</p>
           <button type="submit" class="btn-primary" id="gateSubmitBtn">
             Continue
           </button>
@@ -1421,6 +1438,7 @@
         const phoneGateForm = document.getElementById("phoneGateForm");
         const gatePhone = document.getElementById("gatePhone");
         const gateSubmitBtn = document.getElementById("gateSubmitBtn");
+        const phoneError = document.getElementById("phoneError");
         const mainContent = document.getElementById("mainContent");
 
         // ---- State ----
@@ -1469,6 +1487,24 @@
           if (digits.startsWith("0")) return "92" + digits.substring(1);
           if (digits.startsWith("92")) return digits;
           return "92" + digits;
+        }
+
+        function isValidPakistaniPhone(raw) {
+          var digits = raw.replace(/\D/g, "");
+          if (digits.length === 11 && digits.startsWith("03")) return true;
+          if (digits.length === 12 && digits.startsWith("92")) return true;
+          if (digits.length === 13 && digits.startsWith("923")) return true;
+          return false;
+        }
+
+        function showPhoneError() {
+          phoneError.classList.add("visible");
+          gatePhone.classList.add("invalid");
+        }
+
+        function clearPhoneError() {
+          phoneError.classList.remove("visible");
+          gatePhone.classList.remove("invalid");
         }
 
         function unlockApp() {
@@ -1830,13 +1866,22 @@
         });
 
         // ---- Phone Gate ----
+        gatePhone.addEventListener("input", function () {
+          this.value = this.value.replace(/[^0-9]/g, "");
+          clearPhoneError();
+        });
+
         phoneGateForm.addEventListener("submit", function (e) {
           e.preventDefault();
           var raw = gatePhone.value.trim();
-          if (!raw) return;
+          if (!raw || !isValidPakistaniPhone(raw)) {
+            showPhoneError();
+            return;
+          }
           var normalized = normalizePhone(raw);
           gateSubmitBtn.disabled = true;
           gateSubmitBtn.textContent = "Saving...";
+          clearPhoneError();
 
           fetch("/api/capture-lead", {
             method: "POST",
