@@ -126,14 +126,6 @@
           opacity: 0;
         }
       }
-      @keyframes gaugeFill {
-        from {
-          stroke-dashoffset: var(--circumference);
-        }
-        to {
-          stroke-dashoffset: var(--target-offset);
-        }
-      }
       @keyframes ripple {
         to {
           transform: scale(4);
@@ -480,29 +472,6 @@
         display: none;
       }
 
-      /* Status Badge */
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1.25rem;
-        border-radius: 100px;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .status-badge.green {
-        background: #e6f4ea;
-        color: #1e7e34;
-      }
-      .status-badge.yellow {
-        background: #fef7e0;
-        color: #b06000;
-      }
-      .status-badge.red {
-        background: #fce8e6;
-        color: #c5221f;
-      }
-
       /* Key Area Cards */
       .area-card {
         display: flex;
@@ -529,6 +498,32 @@
       }
       .area-card.red {
         border-left-color: var(--danger);
+        background: #fdf3f2;
+      }
+
+      .risk-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 100px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        margin-left: 0.5rem;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .risk-badge.green {
+        background: #e6f4ea;
+        color: #1e7e34;
+      }
+      .risk-badge.yellow {
+        background: #fef7e0;
+        color: #b06000;
+      }
+      .risk-badge.red {
+        background: #fce8e6;
+        color: #c5221f;
       }
 
       .area-card .area-icon {
@@ -544,10 +539,10 @@
         margin: 0 0 0.2rem;
       }
       .area-card .area-content p {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: var(--text-light);
         margin: 0;
-        line-height: 1.5;
+        line-height: 1.6;
       }
 
       /* CTA Section */
@@ -998,11 +993,6 @@
       <!-- Report Card -->
       <div id="reportCard" class="card hidden">
         <div
-          style="text-align: center; margin-bottom: 1.5rem"
-          id="gaugeContainer"
-        ></div>
-
-        <div
           style="
             display: flex;
             align-items: center;
@@ -1022,7 +1012,6 @@
           >
             Your Tax Health Report
           </h2>
-          <div id="statusBadge" class="status-badge"></div>
         </div>
         <p
           id="overallSummary"
@@ -1030,8 +1019,8 @@
             color: var(--text-light);
             font-size: 0.9rem;
             margin: 0 0 1.5rem;
-            line-height: 1.5;
-            text-align: center;
+            line-height: 1.6;
+            text-align: left;
           "
         ></p>
 
@@ -1040,11 +1029,22 @@
             font-size: 1rem;
             font-weight: 600;
             color: var(--secondary);
-            margin: 0 0 0.75rem;
+            margin: 0 0 0.25rem;
           "
         >
-          Key Areas of Focus
+          Areas of Concern
         </h3>
+        <p
+          style="
+            color: var(--text-light);
+            font-size: 0.8rem;
+            margin: 0 0 0.75rem;
+            line-height: 1.5;
+          "
+        >
+          These are the areas the tax authority may question now or in the
+          future.
+        </p>
         <div id="concernsList" class="anim-fade-in-up-stagger"></div>
 
         <div class="next-step-cta" id="nextStepCta">
@@ -1118,10 +1118,10 @@
       </div>
 
       <div class="footer anim-fade-in-up">
-        &copy; 2026
+        &copy; 2025 – 2026
         <a href="https://taxsupporthub.com/" target="_blank" rel="noopener"
-          >Tax Support Hub</a
-        >. All rights reserved.
+          >TAX SUPPORT HUB (SMC) PRIVATE LIMITED</a
+        >. All Rights Reserved.
       </div>
     </div>
 
@@ -1195,11 +1195,9 @@
         const errorCard = document.getElementById("errorCard");
         const errorMessage = document.getElementById("errorMessage");
         const retryBtn = document.getElementById("retryBtn");
-        const statusBadge = document.getElementById("statusBadge");
         const overallSummary = document.getElementById("overallSummary");
         const concernsList = document.getElementById("concernsList");
         const newCheckBtn = document.getElementById("newCheckBtn");
-        const gaugeContainer = document.getElementById("gaugeContainer");
         const scanTitle = document.getElementById("scanTitle");
         const scanSubtitle = document.getElementById("scanSubtitle");
         const downloadPdfBtn = document.getElementById("downloadPdfBtn");
@@ -1346,7 +1344,6 @@
         function buildPDFContent(data) {
           var health = data.overall_health || "yellow";
           console.log("health", health);
-          var score = health === "green" ? 85 : health === "red" ? 25 : 55;
           var statusLabel =
             health === "green"
               ? "Good Health"
@@ -1354,7 +1351,6 @@
                 ? "Attention Needed"
                 : "Needs Review";
 
-          var gaugeSvg = getGaugeSVG(health, score);
           var areasHtml = "";
           (data.key_areas || []).forEach(function (item) {
             var s = item.status || "yellow";
@@ -1368,14 +1364,41 @@
                 : '<path d="M12 2L2 22h20L12 2z" fill="' +
                   iconColor +
                   '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
+            var riskLevel =
+              item.risk_level ||
+              (s === "red"
+                ? "High Attention Required"
+                : s === "green"
+                  ? "No Concern Noted"
+                  : "Documentation Recommended");
+            var badgeBg =
+              s === "green" ? "#e6f4ea" : s === "red" ? "#fce8e6" : "#fef7e0";
+            var badgeFg =
+              s === "green" ? "#1e7e34" : s === "red" ? "#c5221f" : "#b06000";
+            var badgeHtml =
+              s === "green"
+                ? ""
+                : '<span style="display:inline-block;padding:1px 8px;border-radius:100px;font-size:9px;font-weight:700;background:' +
+                  badgeBg +
+                  ";color:" +
+                  badgeFg +
+                  ';margin-left:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:0.02em;">' +
+                  escapeHtml(riskLevel) +
+                  "</span>";
+            var rowBg = s === "red" ? "background:#fdf3f2;" : "";
             areasHtml +=
-              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px;">' +
+              '<tr><td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; width: 30px; ' +
+              rowBg +
+              '">' +
               '<svg width="20" height="20" viewBox="0 0 24 24" style="margin-top:2px;">' +
               iconPath +
               "</svg></td>" +
-              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top;">' +
+              '<td style="padding: 10px 12px; border-bottom: 1px solid #e8f4fd; vertical-align: top; ' +
+              rowBg +
+              '">' +
               '<div style="font-weight:600;font-size:13px;color:#213B55;margin-bottom:2px;">' +
               escapeHtml(item.area || "") +
+              badgeHtml +
               "</div>" +
               '<div style="font-size:12px;color:#666;line-height:1.4;">' +
               escapeHtml(item.explanation || "") +
@@ -1393,9 +1416,6 @@
             '<div style="text-align:center;border-bottom:3px solid #0078C8;padding-bottom:16px;margin-bottom:24px;">',
             '<h1 style="font-size:22px;font-weight:800;color:#0078C8;margin:0;">Tax Health Checker</h1>',
             '<p style="font-size:12px;color:#666;margin:4px 0 0;">Powered by Tax Support Hub</p>',
-            "</div>",
-            '<div style="text-align:center;margin-bottom:20px;">',
-            gaugeSvg,
             "</div>",
             '<div style="text-align:center;margin-bottom:20px;">',
             '<span style="display:inline-block;padding:4px 16px;border-radius:100px;font-weight:600;font-size:13px;background:' +
@@ -1417,7 +1437,8 @@
               escapeHtml(summary) +
               "</p>",
             "</div>",
-            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 10px;">Key Areas of Focus</h2>',
+            '<h2 style="font-size:15px;font-weight:700;color:#213B55;margin:0 0 4px;">Areas of Concern</h2>',
+            '<p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 10px;">These are the areas the tax authority may question now or in the future.</p>',
             '<table style="width:100%;border-collapse:collapse;">' +
               areasHtml +
               "</table>",
@@ -1436,38 +1457,6 @@
               " &middot; Tax Support Hub</p>",
             "</div>",
             "</div>",
-          ].join("");
-        }
-
-        function getGaugeSVG(health, score) {
-          var r = 54;
-          var circ = 2 * Math.PI * r;
-          var offset = circ * (1 - score / 100);
-          var color =
-            health === "green"
-              ? "#34a853"
-              : health === "red"
-                ? "#ea4335"
-                : "#fbbc04";
-          return [
-            '<svg width="140" height="140" viewBox="0 0 140 140">',
-            '<circle cx="70" cy="70" r="' +
-              r +
-              '" fill="none" stroke="#e8f4fd" stroke-width="10"/>',
-            '<circle cx="70" cy="70" r="' +
-              r +
-              '" fill="none" stroke="' +
-              color +
-              '" stroke-width="10" stroke-dasharray="' +
-              circ +
-              '" stroke-dashoffset="' +
-              offset +
-              '" stroke-linecap="round" transform="rotate(-90, 70, 70)"/>',
-            '<text x="70" y="64" text-anchor="middle" font-size="32" font-weight="700" fill="#213B55">' +
-              score +
-              "</text>",
-            '<text x="70" y="84" text-anchor="middle" font-size="10" fill="#666">Health Score</text>',
-            "</svg>",
           ].join("");
         }
 
@@ -1626,30 +1615,6 @@
         function displayReport(data) {
           showView(reportCard);
 
-          var health = data.overall_health || "yellow";
-          var score = health === "green" ? 85 : health === "red" ? 25 : 55;
-          var statusLabel =
-            health === "green"
-              ? "Good Health"
-              : health === "red"
-                ? "Attention Needed"
-                : "Needs Review";
-
-          // Gauge
-          gaugeContainer.innerHTML = getGaugeSVG(health, score);
-
-          // Badge
-          statusBadge.className = "status-badge " + health;
-          statusBadge.innerHTML =
-            '<span class="status-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;background:' +
-            (health === "green"
-              ? "#34a853"
-              : health === "red"
-                ? "#ea4335"
-                : "#fbbc04") +
-            ';"></span>' +
-            statusLabel;
-
           overallSummary.textContent =
             data.overall_summary || "Your tax return has been reviewed.";
 
@@ -1668,6 +1633,21 @@
                 : '<path d="M12 2L2 22h20L12 2z" fill="' +
                   iconColor +
                   '"/><line x1="12" y1="9" x2="12" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="19" r="1" fill="white"/>';
+            var riskLevel =
+              item.risk_level ||
+              (s === "red"
+                ? "High Attention Required"
+                : s === "green"
+                  ? "No Concern Noted"
+                  : "Documentation Recommended");
+            var badgeHtml =
+              s === "green"
+                ? ""
+                : '<span class="risk-badge ' +
+                  s +
+                  '">' +
+                  escapeHtml(riskLevel) +
+                  "</span>";
             var div = document.createElement("div");
             div.className = "area-card " + s;
             div.innerHTML =
@@ -1676,6 +1656,7 @@
               "</svg></div>" +
               '<div class="area-content"><h4>' +
               escapeHtml(item.area || "Area") +
+              badgeHtml +
               "</h4><p>" +
               escapeHtml(item.explanation || "") +
               "</p></div>";

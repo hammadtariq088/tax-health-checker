@@ -98,14 +98,26 @@ def init_table():
                 embedding vector(%s)
             )
         """, (EMBEDDING_DIMS,))
-        if EMBEDDING_DIMS <= 2000:
-            cur.execute("""
-                CREATE INDEX idx_knowledge_embedding
-                ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)
-            """)
-            logger.info("Created ivfflat index")
-        else:
-            logger.info(f"Skipping ivfflat index ({EMBEDDING_DIMS} dims > 2000)")
+
+    cur.execute("""
+        SELECT indexdef
+        FROM pg_indexes
+        WHERE tablename = 'knowledge_chunks'
+          AND indexname = 'idx_knowledge_embedding'
+    """)
+    index_row = cur.fetchone()
+    if index_row and "USING hnsw" in index_row[0]:
+        logger.info("HNSW index already exists")
+    else:
+        if index_row:
+            logger.info("Replacing existing vector index with HNSW...")
+            cur.execute("DROP INDEX IF EXISTS idx_knowledge_embedding")
+        cur.execute("""
+            CREATE INDEX idx_knowledge_embedding
+            ON knowledge_chunks
+            USING hnsw (embedding vector_cosine_ops)
+        """)
+        logger.info("Created HNSW index")
 
     conn.commit()
     cur.close()
