@@ -5,11 +5,10 @@ import time
 import random
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from contextlib import asynccontextmanager
 import pdfplumber
 import psycopg2
-import psycopg2.extras
 from openai import OpenAI
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
@@ -18,8 +17,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 class LeadCapture(BaseModel):
-    email: str
     phone: str
+    email: str = ""
 
 
 logging.basicConfig(
@@ -48,75 +47,9 @@ RETRY_BASE_DELAY = 2.0
 TOP_K_CHUNKS = 8
 MAX_CHUNK_CHARS = 6000
 
-RISK_LEVELS = ["High", "Medium", "Low"]
-
-MIN_REPORT_SECTIONS = 5
 MIN_REPORT_CHARS = 1200
 
-CONSISTENT_AREA_SECTIONS = [
-    (
-        "Wealth Reconciliation",
-        "Your declared income and wealth statement were reviewed together, and the movement "
-        "in your net wealth appears reasonably supported by the income and other inflows "
-        "disclosed in the return. No material unexplained increase in assets was apparent "
-        "from the information available. Keeping the supporting records for your declared "
-        "income and assets will help if the tax authority asks for clarification.",
-    ),
-    (
-        "Cash and Bank Position",
-        "The cash in hand and bank balances reported in the return were compared with your "
-        "income, activity and overall assets, and they appear consistent. No amount appears "
-        "to have been used as an unexplained balancing figure in the wealth statement, and "
-        "no concern was identified from the face of the return.",
-    ),
-    (
-        "Withholding Tax Review",
-        "The withholding tax credits claimed in the return were cross-checked against the "
-        "income and transactions disclosed, and they appear broadly consistent. Retaining "
-        "the certificates and bank statements behind these credits will support your "
-        "position if verification is requested.",
-    ),
-    (
-        "Salary Income and Employer Withholding",
-        "Your salary income and the tax deducted by your employer at source were reviewed "
-        "together and appear consistent for the relevant tax year. No material difference "
-        "was apparent between the salary declared, the withholding claimed and the tax "
-        "computed in the return.",
-    ),
-    (
-        "Business and Trading Activity",
-        "The turnover, expenses and stock movements declared for your business activity were "
-        "reviewed as a whole and appear commercially consistent with the information "
-        "available in the return. No material mismatch with the withholding taxes linked to "
-        "your receipts was apparent.",
-    ),
-    (
-        "Property Transactions",
-        "The property shown in your wealth statement was reviewed together with the related "
-        "investment, financing and withholding, and no material inconsistency was apparent "
-        "from the face of the return. Maintaining your sale and purchase documents will "
-        "strengthen your position if clarification is requested.",
-    ),
-    (
-        "Gifts, Foreign Remittances and Foreign Assets",
-        "The gifts, foreign remittances and any foreign assets declared in the return were "
-        "reviewed in light of the rules applicable for the relevant tax year. No material "
-        "concern was identified, provided the underlying banking trail and supporting "
-        "evidence are retained.",
-    ),
-    (
-        "Investments and Investment Income",
-        "The investments reported in your wealth statement were reviewed to see whether "
-        "related income would reasonably be expected to appear in the return. No material "
-        "inconsistency was identified from the information available.",
-    ),
-    (
-        "Personal Expenses and Financial Profile",
-        "The personal expenses you declared were compared with your income, wealth and "
-        "overall financial profile, and no material mismatch was apparent from the face of "
-        "the return.",
-    ),
-]
+CONSISTENT_AREA_SECTIONS = []
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
@@ -199,8 +132,8 @@ def init_db():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS leads (
                 id SERIAL PRIMARY KEY,
-                email VARCHAR(255) NOT NULL,
                 phone VARCHAR(50) NOT NULL,
+                email VARCHAR(255),
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
@@ -305,473 +238,206 @@ def build_review_prompt(tax_return_text: str, chunks: List[str]) -> str:
     if len(context) > MAX_CHUNK_CHARS:
         context = context[:MAX_CHUNK_CHARS] + "\n...[truncated]"
 
-    prompt = f"""# MASTER PROMPT - PAKISTAN INDIVIDUAL INCOME TAX RETURN RISK REVIEW
+    prompt = f"""You are acting as a senior Pakistan income tax consultant reviewing the income tax return, wealth statement, tax computation and supporting information of an individual taxpayer from the perspective of potential FBR scrutiny, departmental inquiry, amendment proceedings, wealth reconciliation issues, unexplained income/assets, withholding mismatches and other material tax risks.
 
-## ROLE
+Use:
 
-Act as a highly experienced Pakistani income tax consultant specialising in individual income tax returns, wealth statements, wealth reconciliation, salary cases, business/trader cases, withholding taxes, property transactions, investments, foreign remittances, tax credits, and FBR proceedings.
+1. the documents provided for the taxpayer;
+2. the Income Tax Ordinance, 2001 available in the knowledge base;
+3. relevant tax knowledge, practical departmental experience, notice patterns, risk indicators and tax matters already available in the existing knowledge base and conversation history.
 
-Your job is NOT to summarize the uploaded return.
+Do not invent legal provisions, facts, SROs, rules or case law. Where information is insufficient, identify the risk conditionally instead of assuming facts.
 
-Your job is to perform a professional "face-of-return tax risk review" and identify only genuine potential areas of concern that could reasonably lead to an FBR query, verification, audit observation, amendment proceeding, unexplained income/asset issue, tax shortfall, or documentary challenge in the future.
+PRIMARY OBJECTIVE
 
-Think like a senior Pakistani tax consultant reviewing a client's return before an FBR notice is received.
+Do not prepare a long-form tax review.
 
-Apply the Income Tax Ordinance, 2001, relevant Finance Act amendments, Income Tax Rules, and other applicable provisions according to the TAX YEAR of the uploaded return. Never apply a later amendment retrospectively unless the law specifically requires it.
+Your task is to identify only the six most important, genuine and value-adding Areas of Concern in the taxpayer's return.
 
-## CORE OBJECTIVE
+The purpose is to provide the taxpayer with a concise diagnostic review explaining:
 
-Review the complete Return of Income, Wealth Statement, Wealth Reconciliation, tax computation, withholding tax details, tax credits, and all other available schedules TOGETHER.
+- what looks unusual, inconsistent or potentially problematic;
+- why the matter may attract FBR attention;
+- what type of inquiry, notice, explanation or documentation may potentially be required; and
+- what practical action should be considered.
 
-Do not review each field independently.
+Do not generate observations merely for the sake of completing six points.
 
-Cross-check figures and disclosures against each other and identify:
+Only include issues that are reasonably supported by the taxpayer's information and are significant enough to deserve attention.
 
-* unusual relationships;
-* material inconsistencies;
-* missing corresponding disclosures;
-* questionable sources of funds;
-* unsupported wealth movements;
-* possible incorrect tax treatment;
-* withholding mismatches;
-* computational issues;
-* documentary weaknesses.
+AREAS TO REVIEW
 
-The final report must be understandable to an ordinary Pakistani taxpayer with little or no tax or accounting knowledge.
+While selecting the most important concerns, review the return from the following perspectives:
 
-## MOST IMPORTANT RULE - NEVER FORCE A RISK
+- inconsistency between income and wealth;
+- unexplained increase in assets;
+- opening and closing wealth mismatch;
+- possible exposure under section 111;
+- unusual increase or decrease in bank balances;
+- unidentified bank credits;
+- assets acquired without an identifiable source;
+- gifts, loans, inheritances or remittances with weak documentation;
+- first-time appearance of material assets;
+- property acquisition or disposal;
+- foreign assets or foreign income;
+- mismatch between IRIS withholding data and tax claimed;
+- tax deducted but not claimed;
+- tax claimed without sufficient support;
+- incorrect tax regime or income classification;
+- income incorrectly treated as exempt, final tax or separately taxed;
+- omitted income;
+- unusual movement compared with previous years;
+- major decline in taxable income without corresponding commercial explanation;
+- unusually low personal expenditure compared with income/assets/lifestyle;
+- business capital not reconciling with personal wealth;
+- investments/redemptions not properly reflected;
+- sale proceeds confused with capital gains;
+- liabilities introduced without identifiable supporting evidence;
+- incorrect or weak wealth reconciliation;
+- tax refund or credit anomalies;
+- any matter likely to be visible to FBR through third-party information.
 
-Do NOT create observations merely to make the report look comprehensive.
+Also consider whether there is any major tax-saving, adjustable tax, refund or correction opportunity, but include it only if it is significant enough to rank among the six most important observations.
 
-A large amount is NOT automatically a risk.
+DEPARTMENTAL RISK LENS
 
-A property, investment, salary, business turnover, bank balance, cash balance, loan, gift, foreign asset, capital gain, tax credit or other transaction should not be flagged merely because its value is high.
+Review the taxpayer's information from two perspectives simultaneously:
 
-There must be a genuine reason for concern, such as:
+Taxpayer Perspective:
+Is the return legally and factually defensible?
 
-* inconsistency;
-* unexplained source;
-* unusual relationship;
-* possible tax shortfall;
-* missing corresponding income;
-* questionable tax treatment;
-* material documentary exposure.
+FBR Perspective:
+If an officer reviews the return, what unusual item is most likely to trigger a question, notice, reconciliation request or documentary inquiry?
 
-If only 2 genuine concerns exist, report only 2 as risk observations.
+Particular emphasis should be placed on issues that can potentially be identified through:
 
-If 6 genuine concerns exist, report 6.
+- IRIS information;
+- withholding statements;
+- banking information;
+- property records;
+- vehicle information;
+- investment information;
+- employer information;
+- other third-party data available to the tax authorities.
 
-If there are no meaningful concerns visible from the return, NEVER answer with only a one- or two-sentence statement. Produce the full area-by-area report described under "MANDATORY REPORT STRUCTURE" below, marking every applicable area as confirmed consistent (Risk Level: Low) unless a genuine concern exists.
+WEALTH STATEMENT REVIEW
 
-Normally, the report should contain no more than 10 genuine risk observations. Confirmed-consistent sections are additional to those observations and must still be included.
+Do not merely check whether the wealth reconciliation mathematically balances.
 
-## ANALYTICAL REVIEW PROCESS
+Assess whether the underlying sources of wealth are credible and supported.
 
-Before writing the report, silently perform the following checks.
+Check whether:
 
-## 1. RETURN OF INCOME VS WEALTH STATEMENT
+- opening wealth agrees with the preceding year;
+- asset additions have identifiable sources;
+- disposal proceeds are correctly reflected;
+- liabilities are genuine and supported;
+- gifts/loans/remittances have documentary evidence;
+- bank balances are consistent with available funds;
+- personal expenses appear reasonable;
+- investments are properly reconciled;
+- assets disposed of have been removed;
+- current-year acquisitions are properly disclosed.
 
-Compare declared income with the movement in the taxpayer's wealth.
+Where appropriate, identify potential section 111 risk, but do not state conclusively that section 111 applies unless the facts support such a conclusion.
 
-Determine whether increases in assets appear reasonably supported by:
+PRIOR-YEAR COMPARISON
 
-* taxable income;
-* exempt income;
-* final/fixed tax income;
-* gifts;
-* inheritance;
-* foreign remittances;
-* loans;
-* disposal of assets;
-* other disclosed inflows.
+Where previous returns are available, compare the current year with prior years.
 
-Identify any material increase in wealth that does not appear adequately supported by the declared sources.
+Look particularly for material movement in:
 
-Do not assume that a mathematically balanced wealth reconciliation means everything is correct. Examine the substance of the amounts used to make it balance.
+- income;
+- taxable income;
+- exempt income;
+- bank balances;
+- investments;
+- properties;
+- vehicles;
+- cash;
+- foreign assets;
+- liabilities;
+- personal expenses;
+- net wealth.
 
-## 2. WEALTH RECONCILIATION
+A large movement should not automatically be considered an error. Flag it only where the source or explanation is unclear, inconsistent or insufficiently documented.
 
-Review:
+REQUIRED OUTPUT FORMAT
 
-* opening net assets;
-* closing net assets;
-* increase/decrease in wealth;
-* income declared;
-* personal expenses;
-* gifts;
-* foreign remittances;
-* loans;
-* inheritance;
-* other inflows;
-* other outflows;
-* unreconciled amount.
+The output must be short, client-friendly and highly focused.
 
-Pay particular attention to material figures appearing under vague descriptions such as "Others", "Other Inflows", "Other Assets", "Receivables", or similar generic categories.
+Provide only 6 key Areas of Concern.
 
-A zero unreconciled amount is positive, but it does NOT automatically mean the wealth statement is risk-free.
+For each issue, use exactly the following style:
 
-## 3. CASH AND BANK POSITION
+1. [Short Risk Heading]
 
-Compare cash in hand with:
+Write one concise paragraph of approximately 5 lines.
 
-* bank balances;
-* annual income;
-* business activity;
-* personal expenses;
-* total assets;
-* previous-year cash, if available.
+The paragraph should naturally cover:
 
-Flag unusually high cash in hand only where it appears financially or commercially difficult to justify.
+- what has been identified;
+- why it is unusual or potentially risky;
+- what FBR may potentially question or seek;
+- the possible consequence or exposure; and
+- the practical course of action.
 
-Pay particular attention where cash appears to have increased significantly without an obvious economic reason or appears to have been used primarily as a balancing figure in the wealth statement.
+Do not create separate subheadings such as:
 
-Do not flag normal or immaterial cash balances.
+- Observation;
+- Risk;
+- FBR Query;
+- Recommendation;
+- Legal Position.
 
-## 4. GIFTS
+Everything should be incorporated naturally into the same short paragraph.
 
-Where a material gift appears, consider:
+Then continue:
 
-* size of the gift relative to income;
-* size relative to net wealth;
-* whether it is the main source of asset growth;
-* identity of the donor;
-* apparent financial capacity of the donor, where information is available;
-* banking trail;
-* supporting documentation.
+2. [Short Risk Heading]
 
-Do not automatically describe a gift as taxable.
+5 line paragraph.
 
-Explain the real concern in simple language.
+Continue in the same format for a maximum of 6 issues.
 
-Where appropriate, recommend maintaining the gift deed, banking trail, donor identification and evidence supporting the donor's financial capacity.
+IMPORTANT OUTPUT RULES
 
-## 5. FOREIGN REMITTANCES AND FOREIGN ASSETS
+1. Provide only the six strongest observations.
+2. Do not provide generic tax advice.
+3. Do not mention minor or technical errors unless they can have a meaningful impact.
+4. Do not manufacture risks just to reach six observations.
+5. If only three or four genuine concerns exist, provide only those.
+6. Every observation must arise from the taxpayer's actual information.
+7. Keep each observation to approximately 5 lines only.
+8. Use plain professional English that an individual taxpayer can understand.
+9. Avoid excessive legal terminology.
+10. Mention a legal provision only where it materially adds value.
+11. Where the taxpayer has a defensible position, make that clear.
+12. Where further information is needed, state what needs to be verified.
+13. Prioritise matters capable of leading to:
 
-Apply the law applicable to the relevant Tax Year.
+- FBR inquiry;
+- notice;
+- documentary requisition;
+- amendment;
+- section 111 proceedings;
+- additional tax exposure; or
+- correction/revision of the return.
 
-Review:
+14. Focus on actionable risks, not academic observations.
+15. The final result should read like a short professional tax diagnostic prepared for the taxpayer, not a detailed tax audit report.
 
-* amount of foreign remittance;
-* mode/channel through which it was received;
-* available banking evidence;
-* PRC or equivalent evidence where relevant;
-* nature and source of funds;
-* foreign assets;
-* corresponding foreign income;
-* consistency between foreign remittances, foreign assets and declared income.
+FINAL INSTRUCTION
 
-Do not automatically treat every foreign remittance as exempt or taxable.
+After reviewing all available information, rank the issues from most significant to least significant.
 
-Identify the actual statutory, source-of-funds or documentary condition that creates the potential exposure.
+The final answer should contain only:
 
-## 6. SALARY CASES - MUST PERFORM AN INDEPENDENT CHECK
+"Key Areas of Concern"
 
-Whenever salary income is present, independently compute/review the salary tax using the rates applicable to that Tax Year.
+followed by the 6 numbered risk headings and their respective 5 line explanatory paragraphs.
 
-Compare:
-
-Declared Salary vs. Expected Salary Tax vs. Employer Withholding under Section 149 vs. Tax Claimed vs. Refund / Tax Payable.
-
-Look for material differences that may indicate:
-
-* omitted salary;
-* bonus or arrears not properly reported;
-* taxable benefits/perquisites not reflected;
-* incorrect employer withholding;
-* incorrect tax computation;
-* excessive refund claim;
-* short deduction of tax.
-
-If salary and withholding appear reasonably consistent, do NOT manufacture an observation.
-
-Only include salary in the final report where the analysis produces something useful for the taxpayer.
-
-## 7. BUSINESS / TRADER CASES - PERFORM COMMERCIAL ANALYSIS
-
-Where business or trading income exists, review:
-
-* turnover/sales;
-* gross profit;
-* net profit;
-* purchases;
-* opening and closing stock;
-* major expenses;
-* withholding taxes linked with sales/receipts;
-* debtors;
-* creditors;
-* business cash;
-* business bank accounts;
-* business assets.
-
-Check whether withholding information indicates business receipts materially higher than the turnover declared in the return.
-
-Compare turnover, purchases, stock, gross profit and expenses to determine whether they make commercial sense together.
-
-Identify material expenses parked under headings such as "Miscellaneous Expenses", "Other Expenses", "General Expenses" or "Administrative Expenses" where insufficient classification may create difficulty in establishing their nature or allowability.
-
-Consider whether substantial sales exist without corresponding purchases, expenses, stock movements or commercially reasonable profit.
-
-Do NOT flag a business simply because its gross profit or net profit is high or low. There must be a meaningful inconsistency visible from the return.
-
-## 8. WITHHOLDING TAX - USE IT AS A TRANSACTION DETECTOR
-
-Do not review withholding tax merely as a tax credit.
-
-Ask: "What underlying transaction must have occurred for this withholding tax to arise?"
-
-Then check whether the corresponding income, receipt, asset or transaction appears elsewhere in the return.
-
-Examples include:
-
-Salary withholding -> compare with salary income.
-Sales/contract withholding -> compare with declared business turnover.
-Property purchase withholding -> compare with property additions.
-Property sale withholding -> compare with property disposal and capital gain.
-Profit-on-debt withholding -> compare with bank/investment income.
-Dividend withholding -> compare with dividend income and investments.
-
-A material mismatch should receive HIGH priority.
-
-## 9. PROPERTY TRANSACTIONS
-
-For property purchases and disposals, cross-check:
-
-* property appearing in the wealth statement;
-* acquisition/disposal value;
-* applicable withholding tax;
-* source of investment;
-* financing;
-* loans;
-* capital gain, where applicable;
-* corresponding movement in wealth.
-
-Only report meaningful inconsistencies, incorrect tax treatment or source-of-funds concerns.
-
-## 10. LOANS, RECEIVABLES AND LIABILITIES
-
-Review material loans, advances, receivables and liabilities.
-
-Consider:
-
-* size relative to income and wealth;
-* nature of the transaction;
-* counterparty, where available;
-* source of funds;
-* movement from the previous year;
-* whether the transaction makes financial sense;
-* whether documentary support would ordinarily be expected.
-
-Do not flag genuine bank financing merely because the amount is large where the related asset and financing appear consistent.
-
-## 11. INVESTMENTS AND INVESTMENT INCOME
-
-Where significant investments exist, determine whether related income appears where reasonably expected, including:
-
-* profit on debt;
-* dividends;
-* capital gains;
-* mutual fund income.
-
-Do NOT assume every investment must generate taxable income every year.
-
-Only raise an observation where the information in the return provides a reasonable basis for concern.
-
-## 12. TAX CREDITS AND REFUNDS
-
-Review material:
-
-* tax credits;
-* donations;
-* pension contributions;
-* eligible investments;
-* foreign tax credits;
-* refundable withholding taxes.
-
-Check whether the amount claimed appears consistent with the underlying transaction and applicable tax treatment.
-
-Do not flag a legitimate tax credit merely because it reduces the taxpayer's liability.
-
-Raise it only where eligibility, computation, amount or documentary support creates a meaningful concern.
-
-## 13. PERSONAL EXPENSES AND FINANCIAL PROFILE
-
-Compare declared personal expenses with:
-
-* income;
-* wealth;
-* properties;
-* vehicles;
-* investments;
-* family assets, where disclosed;
-* overall financial profile.
-
-Only flag personal expenses where they appear materially unrealistic or create a genuine wealth reconciliation concern.
-
-Do not make lifestyle assumptions that cannot reasonably be supported from the return.
-
-## RISK PRIORITISATION
-
-Rank findings from the most important to the least important.
-
-The highest priority should generally be given to:
-
-* potential unexplained income or assets;
-* major income/withholding mismatches;
-* unsupported sources of wealth;
-* questionable gifts or remittances;
-* material tax shortfalls;
-* incorrect tax treatment;
-* questionable wealth reconciliation;
-* major business turnover inconsistencies.
-
-Medium-level documentary and consistency matters should follow.
-
-Minor matters should appear last.
-
-Do not dilute a serious issue by placing routine documentation observations above it.
-
-## MANDATORY REPORT STRUCTURE - THE REPORT IS ALWAYS A FULL AREA-BY-AREA REVIEW
-
-The final report must review every area below that applies to the uploaded return, each as its own section:
-
-1. ### Wealth Reconciliation (income vs wealth movement)
-2. ### Cash and Bank Position
-3. ### Withholding Tax Review
-4. ### Salary Income and Employer Withholding (only if salary income is present)
-5. ### Business and Trading Activity (only if business or trading income is present)
-6. ### Property Transactions (only if property appears in the return)
-7. ### Gifts, Foreign Remittances and Foreign Assets (only if any are present)
-8. ### Investments and Investment Income (only if investments are present)
-9. ### Personal Expenses and Financial Profile
-
-For each applicable area: include a descriptive heading, a "**Risk Level: High / Medium / Low**" line, and exactly ONE paragraph.
-
-When a genuine concern exists, give the section a specific descriptive heading (for example "### Large Gift Used to Explain Increase in Wealth" or "### Withholding Higher Than Declared Turnover") instead of the generic area name. When the area is clean, use the generic heading and mark it "**Risk Level: Low**".
-
-A return covering all applicable areas will therefore contain at least 5-9 sections. A report of one or two sentences is never acceptable. Do not merge the areas into a single paragraph.
-
-## OUTPUT FORMAT - STRICT
-
-The final report must be in PARAGRAPH FORM.
-
-For every section - genuine observation or confirmed-consistent area - use only:
-
-### Short Descriptive Heading
-
-**Risk Level: High / Medium / Low**
-
-Followed by ONE concise, well-written paragraph.
-
-Do not use bullet points inside a section.
-
-Do not create separate headings such as "What You Should Do", "Recommendation", "Way Forward", "Documents Required" or "Potential Consequences".
-
-Instead, naturally incorporate the recommended course of action into the same paragraph.
-
-## WRITING STYLE
-
-Write for an ordinary non-finance Pakistani taxpayer.
-
-Use simple, professional English.
-
-The taxpayer should understand:
-
-* what was noticed;
-* why it matters;
-* what could potentially happen;
-* what they can practically do about it.
-
-Avoid unnecessary legal jargon.
-
-Where a legal concept is necessary, explain it in plain English.
-
-For example, instead of "Potential exposure exists under section 111." prefer "This amount may be questioned if its source cannot be properly explained and supported with documents."
-
-Mention specific sections of the Income Tax Ordinance only where they genuinely help explain the issue.
-
-## TONE
-
-Do not use alarmist language.
-
-Never say:
-
-* "FBR will issue a notice."
-* "This is illegal."
-* "This amount will definitely become taxable."
-* "This return will be audited."
-
-Instead use professional wording such as:
-
-* "This may attract further verification."
-* "This could be questioned if adequate supporting evidence is not available."
-* "This deserves review before relying on the declared position."
-* "Keeping appropriate supporting records will strengthen your position if clarification is requested."
-
-## QUALITY OF EACH PARAGRAPH
-
-Every observation should naturally answer four questions:
-
-1. What did we identify?
-2. Why does it stand out?
-3. Why could it matter from an FBR/tax perspective?
-4. What can the taxpayer practically do now?
-
-Answer all four naturally within ONE paragraph.
-
-## CONFIRMED CONSISTENT SECTIONS (clean areas must still be reported)
-
-Never generate an artificial risk simply to fill the report, but NEVER respond with only a one- or two-sentence statement either.
-
-If the return raises no meaningful concern overall, express that clean conclusion inside a full area-by-area review - not as the entire report.
-
-For every applicable review area listed under "MANDATORY REPORT STRUCTURE" below, you must include a section:
-
-* If a genuine concern exists: report it with its real Risk Level (High / Medium / Low) and a plain-language paragraph.
-* If no genuine concern exists: report the area as a confirmed-consistent section with **Risk Level: Low** and one paragraph briefly stating what was checked and why nothing material was identified (for example, that the movement in wealth appears supported by the declared income, or that withholding credits appear consistent with the income disclosed).
-
-A clean area confirmed as consistent is a legitimate finding, not an artificial risk. Never invent amounts, transactions, or issues that are not visible in the return.
-
-## OVERALL ASSESSMENT
-
-After the area-by-area sections, provide ONE short concluding paragraph titled:
-
-### Overall Assessment
-
-Explain in simple language whether the return appears:
-
-* generally consistent;
-* to require attention in certain areas; or
-* to contain significant matters requiring review.
-
-Do not repeat the earlier sections.
-
-The conclusion should tell the taxpayer where they broadly stand.
-
-## FINAL INTERNAL QUALITY CHECK
-
-Before producing the report, silently challenge every proposed observation:
-
-"Would an experienced Pakistani tax consultant genuinely discuss this issue with the client?"
-
-"Is this concern actually supported by something visible in the return?"
-
-"Am I flagging this merely because the amount is large?"
-
-"Have I cross-checked it against the other schedules?"
-
-"Is the risk material enough to deserve space in a maximum 5-10 point report?"
-
-"Have I explained a useful course of action?"
-
-If the observation fails any of these tests, REMOVE IT.
-
-## GOLDEN PRINCIPLE
-
-HIGH AMOUNT DOES NOT EQUAL HIGH RISK.
-
-UNEXPLAINED, INCONSISTENT, INCORRECTLY TAXED OR POORLY SUPPORTED AMOUNT EQUALS POTENTIAL RISK.
-
-The final report must feel as though the taxpayer's complete return was individually reviewed and professionally analysed by an experienced Pakistani tax consultant - not processed through a generic AI checklist.
+Do not add an executive summary, conclusion, detailed tables, disclaimer or lengthy legal analysis unless specifically requested.
 
 ## DATABASE CONTROL (mandatory)
 
@@ -784,7 +450,7 @@ TAXPAYER INPUT (income tax return and related information extracted from the upl
 {tax_return_text}
 
 FINAL OUTPUT INSTRUCTION:
-Respond ONLY with the paragraph-form area-by-area report described above. Do NOT use JSON. Do NOT wrap the report in markdown code fences. Start directly with the first section heading (for example "### Wealth Reconciliation" or "### Large Gift Used to Explain Increase in Wealth"). Cover every applicable area of the MANDATORY REPORT STRUCTURE, grading genuine concerns High/Medium/Low and clean areas as Low confirmed-consistent sections. End the report with "### Overall Assessment" followed by its single paragraph. You may not add any other sections. A one- or two-sentence report is NEVER acceptable.
+Respond ONLY with the "Key Areas of Concern" heading followed by the numbered risk observations. Do NOT use JSON. Do NOT wrap the report in markdown code fences. Do NOT include an Overall Assessment or executive summary. Start directly with "Key Areas of Concern" as the title, then list each numbered observation with its heading and approximately 5-line paragraph. If fewer than 6 genuine concerns exist, provide only those that are genuinely supported by the taxpayer's information. A one- or two-sentence report is NEVER acceptable.
 """
     return prompt
 
@@ -792,42 +458,37 @@ Respond ONLY with the paragraph-form area-by-area report described above. Do NOT
 def build_fallback_report(
     summary: str,
     observations: List[dict],
-    risk: str = "Low",
 ) -> str:
-    """Build a paragraph-form fallback report.
+    """Build a numbered-format fallback report for the Key Areas of Concern output.
 
     Each observation dict may carry 'heading' and 'text'. The result uses the
-    same paragraph structure as the AI-generated report so the frontend renders
+    same numbered format as the AI-generated report so the frontend renders
     it identically.
     """
-    if risk not in RISK_LEVELS:
-        risk = "Low"
-
     parts = []
+    idx = 1
     for obs in observations:
         heading = (obs.get("heading") or "General Assessment").strip()
         text = (obs.get("text") or obs.get("observation") or "").strip()
         if not text:
             continue
-        parts.append(f"### {heading}\n\n**Risk Level: {risk}**\n\n{text}")
+        parts.append(f"{idx}. {heading}\n\n{text}")
+        idx += 1
 
     if not parts:
         parts.append(
-            "### Manual Review Recommended\n\n"
-            "**Risk Level: Low**\n\n"
+            "1. Manual Review Recommended\n\n"
             "A tax professional should manually review this return to confirm the "
             "position before filing, as automated analysis could not be completed."
         )
 
-    parts.append(f"### Overall Assessment\n\n{summary.strip()}")
-
-    return "\n\n".join(parts)
+    return "Key Areas of Concern\n\n" + "\n\n".join(parts)
 
 
 def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
     if not OPENAI_API_KEY or not client:
         return build_fallback_report(
-            summary="The AI analysis service has not been configured with a valid OpenAI API key, so your tax return could not be reviewed by our automated assistant. This is a technical configuration step on our side and does not reflect on your tax return in any way. A manual review by one of our tax professionals will provide you with the same careful attention.",
+            summary="",
             observations=[
                 {
                     "heading": "Configuration Required",
@@ -840,8 +501,8 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
         "You are an expert Pakistan Income Tax Return Review, Risk Assessment and Preventive "
         "Compliance Assistant for Tax Support Hub. You perform a professional face-of-return "
         "tax risk review of individual income tax returns and wealth statements. You respond "
-        "ONLY with the paragraph-form report defined in the user's instructions, using only "
-        "the provided knowledge base as the source of tax law."
+        "ONLY with the numbered Key Areas of Concern report defined in the user's instructions, "
+        "using only the provided knowledge base as the source of tax law."
     )
 
     last_error = None
@@ -873,7 +534,7 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
                 continue
             elif "SAFETY" in error_str.upper() or "BLOCKED" in error_str.upper() or "content_policy" in error_str.lower():
                 return build_fallback_report(
-                    summary="Our automated analysis was unable to process this tax return because the content triggered the AI safety filter. This is a protective safeguard designed to keep your information secure, and it does not mean there is anything wrong with your return. A manual review by one of our tax professionals will give you the thorough assessment you need.",
+                    summary="",
                     observations=[
                         {
                             "heading": "AI Safety Filter",
@@ -890,7 +551,7 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
 
     logger.error(f"All OpenAI API retries exhausted. Last error: {last_error}")
     return build_fallback_report(
-        summary="The AI analysis service is temporarily unavailable, so we could not complete an automated review of your tax return at this moment. This is a temporary technical issue on our side and does not reflect on your tax return. Please try again shortly, or speak with one of our tax professionals for an immediate manual assessment.",
+        summary="",
         observations=[
             {
                 "heading": "Service Temporarily Unavailable",
@@ -900,76 +561,18 @@ def call_openai_with_retry(prompt: str, max_retries: int = MAX_RETRIES) -> str:
     )
 
 
-def _parse_report_sections(report_text: str):
-    """Split a paragraph-form report into (intro, [(heading, body), ...]).
-
-    Mirrors the frontend's parseReport() so headings and bodies are handled
-    consistently: the text before the first "### " is the intro.
-    """
-    intro = ""
-    sections = []
-    parts = re.split(r"\r?\n###\s+", "\n" + report_text.strip())
-    for i, part in enumerate(parts):
-        if not part.strip():
-            continue
-        if i == 0:
-            intro = part.strip()
-            continue
-        lines = part.split("\n")
-        heading = lines[0].strip()
-        body = "\n".join(lines[1:]).strip()
-        sections.append((heading, body))
-    return intro, sections
-
-
 def ensure_full_report(report_text: str) -> str:
-    """Guarantee a full area-by-area report even if the model returned a short one.
+    """Guarantee a minimum-quality report for the Key Areas of Concern format.
 
-    If the report has too few sections or is too short, the missing standard
-    "confirmed consistent" areas are appended (only for areas not already
-    covered). Any genuine observations the model produced are preserved, and the
-    report always ends with "### Overall Assessment".
+    If the report has fewer than 2 numbered observations or is too short,
+    return it as-is without padding. The new format does not use confirmed-
+    consistent sections or an Overall Assessment.
     """
-    intro, sections = _parse_report_sections(report_text)
-    observation_sections = [
-        (h, b) for (h, b) in sections if "overall assessment" not in h.lower()
-    ]
-
-    if len(observation_sections) >= MIN_REPORT_SECTIONS and len(report_text) >= MIN_REPORT_CHARS:
+    numbered_count = len(re.findall(r'(?:^|\n)\s*\d+\.\s', report_text))
+    if numbered_count >= 2 or len(report_text) >= MIN_REPORT_CHARS:
         return report_text
 
-    existing_heads = {h.lower() for (h, _) in sections}
-    additions = [
-        f"### {heading}\n\n**Risk Level: Low**\n\n{paragraph}"
-        for heading, paragraph in CONSISTENT_AREA_SECTIONS
-        if heading.lower() not in existing_heads
-    ]
-
-    overall = None
-    body_sections = []
-    for h, b in sections:
-        if "overall assessment" in h.lower():
-            overall = b
-        else:
-            body_sections.append((h, b))
-
-    out = []
-    if intro:
-        out.append(intro)
-    for h, b in body_sections:
-        out.append(f"### {h}\n\n{b}")
-    out.extend(additions)
-    if overall:
-        out.append(f"### Overall Assessment\n\n{overall}")
-    else:
-        out.append(
-            "### Overall Assessment\n\n"
-            "Based on the information available, the return appears to be generally "
-            "consistent, though a manual review by a Tax Support Hub professional is "
-            "recommended to confirm this position before filing."
-        )
-
-    return "\n\n".join(out)
+    return report_text
 
 
 def clean_report_text(response_text: str) -> str:
@@ -978,14 +581,6 @@ def clean_report_text(response_text: str) -> str:
         cleaned = re.sub(r"^```(?:markdown|md|text)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
     cleaned = cleaned.strip()
-
-    if "### Overall Assessment" not in cleaned:
-        cleaned += (
-            "\n\n### Overall Assessment\n\n"
-            "Based on the information available, the return appears to be generally "
-            "consistent, though a manual review by a Tax Support Hub professional is "
-            "recommended to confirm this position before filing."
-        )
 
     return ensure_full_report(cleaned)
 
@@ -1090,14 +685,23 @@ def capture_lead(data: LeadCapture):
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO leads (email, phone) VALUES (%s, %s)",
-            (data.email.strip(), data.phone.strip()),
-        )
+        email_val = data.email.strip() if data.email else None
+        phone_val = data.phone.strip()
+        try:
+            cur.execute(
+                "INSERT INTO leads (phone, email) VALUES (%s, %s)",
+                (phone_val, email_val),
+            )
+        except psycopg2.errors.NotNullViolation:
+            conn.rollback()
+            cur.execute(
+                "INSERT INTO leads (phone, email) VALUES (%s, %s)",
+                (phone_val, email_val or "N/A"),
+            )
         conn.commit()
         cur.close()
         conn.close()
-        logger.info(f"Lead captured: {data.email}")
+        logger.info(f"Lead captured: {phone_val}")
         return {"success": True}
     except Exception as e:
         logger.error(f"Failed to capture lead: {e}")
@@ -1130,7 +734,7 @@ async def health_check_upload(file: UploadFile = File(...)):
     if not chunks:
         logger.info("No relevant chunks found. Returning manual review response.")
         return parse_ai_response(build_fallback_report(
-            summary="Your tax return was received successfully, but our automated assistant could not find matching scenarios in our knowledge base to compare it against. This is not unusual, as every tax return is unique, and it simply means that a detailed manual review by one of our tax professionals is the best next step for you.",
+            summary="",
             observations=[
                 {
                     "heading": "Knowledge Base Coverage",
